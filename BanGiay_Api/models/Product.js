@@ -24,3 +24,5 @@ ProductSchema.index({ ten_san_pham: "text", mo_ta: "text" });
 module.exports = mongoose.model("Product", ProductSchema);
 
 
+
+

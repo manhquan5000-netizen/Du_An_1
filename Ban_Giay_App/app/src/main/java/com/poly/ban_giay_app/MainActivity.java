@@ -6,10 +6,12 @@ import android.os.Handler;
 import android.os.Looper;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
@@ -23,9 +25,18 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.poly.ban_giay_app.adapter.ProductAdapter;
 import com.poly.ban_giay_app.models.Product;
+import com.poly.ban_giay_app.network.ApiClient;
+import com.poly.ban_giay_app.network.ApiService;
+import com.poly.ban_giay_app.network.NetworkUtils;
+import com.poly.ban_giay_app.network.model.BaseResponse;
+import com.poly.ban_giay_app.network.model.ProductResponse;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class MainActivity extends AppCompatActivity {
     private SessionManager sessionManager;
@@ -43,6 +54,7 @@ public class MainActivity extends AppCompatActivity {
     private View layoutTopSection, layoutMenSection;
     private Handler searchHandler = new Handler(Looper.getMainLooper());
     private Runnable searchRunnable;
+    private ApiService apiService;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,6 +63,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         sessionManager = new SessionManager(this);
+        apiService = ApiClient.getApiService();
 
         // Init account navigation
         initAccountNav();
@@ -65,6 +78,9 @@ public class MainActivity extends AppCompatActivity {
 
         // Init product lists
         initProductLists();
+        
+        // Load products from API
+        loadProductsFromApi();
         
         // Init search functionality
         initSearch();
@@ -119,17 +135,6 @@ public class MainActivity extends AppCompatActivity {
         rvTop.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
 
         topProductList = new ArrayList<>();
-        // Dòng sản phẩm hot trên banner
-        topProductList.add(new Product("Nike Air Max Red", "3,200,000₫", "2,690,000₫", R.drawable.giaymau));
-        topProductList.add(new Product("Air Jordan 1 Low Gold", "3,500,000₫", "2,990,000₫", R.drawable.giaymau_1));
-        topProductList.add(new Product("Air Jordan 1 Mid Triple Black", "3,000,000₫", "2,590,000₫", R.drawable.giay2));
-        topProductList.add(new Product("Air Jordan 1 Low Orange", "3,200,000₫", "2,750,000₫", R.drawable.giay3));
-        topProductList.add(new Product("Air Jordan 1 High Orange", "3,800,000₫", "3,150,000₫", R.drawable.giay4));
-        topProductList.add(new Product("Air Jordan 1 Low UNC Blue", "3,200,000₫", "2,790,000₫", R.drawable.giay5));
-        topProductList.add(new Product("Air Jordan 1 Mid Panda", "3,400,000₫", "2,890,000₫", R.drawable.giy6));
-        topProductList.add(new Product("Nike Dunk Low Black/White", "2,900,000₫", "2,450,000₫", R.drawable.giy6));
-        topProductList.add(new Product("Nike Dunk Low Grey/White", "2,900,000₫", "2,450,000₫", R.drawable.giay7));
-        topProductList.add(new Product("Air Force 1 Green Swoosh", "3,000,000₫", "2,590,000₫", R.drawable.giay8));
 
         topProductAdapter = new ProductAdapter(topProductList);
         rvTop.setAdapter(topProductAdapter);
@@ -139,14 +144,6 @@ public class MainActivity extends AppCompatActivity {
         rvMen.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
 
         menProductList = new ArrayList<>();
-        menProductList.add(new Product("Air Force 1 Beige", "3,000,000₫", "2,590,000₫", R.drawable.giay8));
-        menProductList.add(new Product("Air Force 1 Pastel", "3,200,000₫", "2,790,000₫", R.drawable.giay9));
-        menProductList.add(new Product("Nike Dunk Low Black/White", "2,900,000₫", "2,450,000₫", R.drawable.giay10));
-        menProductList.add(new Product("Nike Dunk Low Grey/White", "2,900,000₫", "2,450,000₫", R.drawable.giay11));
-        menProductList.add(new Product("Air Jordan 1 Mid Green", "3,200,000₫", "2,750,000₫", R.drawable.giay12));
-        menProductList.add(new Product("Air Force 1 Shadow Pastel", "3,200,000₫", "2,790,000₫", R.drawable.giay13));
-        menProductList.add(new Product("Air Jordan 1 Mid Grey/Blue", "3,200,000₫", "2,790,000₫", R.drawable.giay14));
-        menProductList.add(new Product("Nike Dunk Low Panda", "2,900,000₫", "2,450,000₫", R.drawable.giay15));
 
         menProductAdapter = new ProductAdapter(menProductList);
         rvMen.setAdapter(menProductAdapter);
@@ -155,6 +152,182 @@ public class MainActivity extends AppCompatActivity {
         allProductList = new ArrayList<>();
         allProductList.addAll(topProductList);
         allProductList.addAll(menProductList);
+    }
+
+    private void loadProductsFromApi() {
+        if (!NetworkUtils.isConnected(this)) {
+            Toast.makeText(this, "Không có kết nối mạng", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        Log.d("MainActivity", "Starting to load products from API...");
+
+        // Load top selling products - dùng API mới
+        apiService.getBestSellingProducts(10).enqueue(new Callback<List<ProductResponse>>() {
+            @Override
+            public void onResponse(Call<List<ProductResponse>> call, Response<List<ProductResponse>> response) {
+                try {
+                    Log.d("MainActivity", "Top products response code: " + response.code());
+                    if (response.isSuccessful()) {
+                        List<ProductResponse> products = response.body();
+                        Log.d("MainActivity", "Top products data: " + (products != null ? products.size() : "null"));
+                        if (products != null && !products.isEmpty()) {
+                            topProductList.clear();
+                            for (ProductResponse productResponse : products) {
+                                Product product = convertToProduct(productResponse);
+                                if (product != null && product.name != null && !product.name.isEmpty()) {
+                                    topProductList.add(product);
+                                    Log.d("MainActivity", "Added product: " + product.name + " - " + product.priceNew);
+                                }
+                            }
+                            runOnUiThread(() -> {
+                                topProductAdapter.notifyDataSetChanged();
+                                updateAllProductList();
+                                Log.d("MainActivity", "Top products updated: " + topProductList.size());
+                            });
+                        } else {
+                            Log.w("MainActivity", "Top products list is empty or null");
+                        }
+                    } else {
+                        String errorMsg = NetworkUtils.extractErrorMessage(response);
+                        Log.e("MainActivity", "Error loading top products: " + errorMsg + ", Code: " + response.code());
+                        if (response.errorBody() != null) {
+                            try {
+                                String errorBody = response.errorBody().string();
+                                Log.e("MainActivity", "Error body: " + errorBody);
+                            } catch (Exception e) {
+                                Log.e("MainActivity", "Error reading error body", e);
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.e("MainActivity", "Exception loading top products", e);
+                    e.printStackTrace();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<ProductResponse>> call, Throwable t) {
+                Log.e("MainActivity", "Failed to load top products", t);
+                t.printStackTrace();
+                runOnUiThread(() -> {
+                    String errorMsg = t.getMessage();
+                    if (errorMsg == null || errorMsg.isEmpty()) {
+                        errorMsg = "Không thể kết nối đến server";
+                    }
+                    Toast.makeText(MainActivity.this, "Lỗi: " + errorMsg, Toast.LENGTH_LONG).show();
+                });
+            }
+        });
+
+        // Load men's products - dùng API mới
+        apiService.getProductsByCategory("nam").enqueue(new Callback<List<ProductResponse>>() {
+            @Override
+            public void onResponse(Call<List<ProductResponse>> call, Response<List<ProductResponse>> response) {
+                try {
+                    Log.d("MainActivity", "Men products response code: " + response.code());
+                    if (response.isSuccessful()) {
+                        List<ProductResponse> products = response.body();
+                        Log.d("MainActivity", "Men products data: " + (products != null ? products.size() : "null"));
+                        if (products != null && !products.isEmpty()) {
+                            menProductList.clear();
+                            for (ProductResponse productResponse : products) {
+                                Product product = convertToProduct(productResponse);
+                                if (product != null && product.name != null && !product.name.isEmpty()) {
+                                    menProductList.add(product);
+                                    Log.d("MainActivity", "Added men product: " + product.name + " - " + product.priceNew);
+                                }
+                            }
+                            runOnUiThread(() -> {
+                                menProductAdapter.notifyDataSetChanged();
+                                updateAllProductList();
+                                Log.d("MainActivity", "Men products updated: " + menProductList.size());
+                            });
+                        } else {
+                            Log.w("MainActivity", "Men products list is empty or null");
+                        }
+                    } else {
+                        String errorMsg = NetworkUtils.extractErrorMessage(response);
+                        Log.e("MainActivity", "Error loading men products: " + errorMsg + ", Code: " + response.code());
+                        if (response.errorBody() != null) {
+                            try {
+                                String errorBody = response.errorBody().string();
+                                Log.e("MainActivity", "Error body: " + errorBody);
+                            } catch (Exception e) {
+                                Log.e("MainActivity", "Error reading error body", e);
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.e("MainActivity", "Exception loading men products", e);
+                    e.printStackTrace();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<ProductResponse>> call, Throwable t) {
+                Log.e("MainActivity", "Failed to load men products", t);
+                t.printStackTrace();
+                runOnUiThread(() -> {
+                    String errorMsg = t.getMessage();
+                    if (errorMsg == null || errorMsg.isEmpty()) {
+                        errorMsg = "Không thể kết nối đến server";
+                    }
+                    Toast.makeText(MainActivity.this, "Lỗi: " + errorMsg, Toast.LENGTH_LONG).show();
+                });
+            }
+        });
+    }
+
+    private void updateAllProductList() {
+        allProductList.clear();
+        allProductList.addAll(topProductList);
+        allProductList.addAll(menProductList);
+    }
+
+    /**
+     * Chuyển đổi ProductResponse từ API sang Product model để hiển thị
+     */
+    private Product convertToProduct(ProductResponse productResponse) {
+        if (productResponse == null) {
+            return null;
+        }
+
+        String name = productResponse.getName();
+        String priceOld = productResponse.getPriceOld();
+        String priceNew = productResponse.getPriceNew();
+        String imageUrl = productResponse.getImageUrl();
+
+        // Đảm bảo có ít nhất tên sản phẩm
+        if (name == null || name.trim().isEmpty()) {
+            Log.w("MainActivity", "Product has no name, skipping");
+            return null;
+        }
+
+        // Nếu không có giá mới, dùng giá cũ làm giá mới
+        if ((priceNew == null || priceNew.trim().isEmpty()) && 
+            (priceOld != null && !priceOld.trim().isEmpty())) {
+            priceNew = priceOld;
+            priceOld = "";
+        }
+
+        // Nếu không có giá nào, set giá mặc định
+        if (priceNew == null || priceNew.trim().isEmpty()) {
+            priceNew = "0₫";
+        }
+
+        // Tạo Product với URL ảnh (nếu có) hoặc resource mặc định
+        if (imageUrl != null && !imageUrl.trim().isEmpty()) {
+            Product product = new Product(name, priceOld, priceNew, imageUrl);
+            // Đảm bảo imageUrl được set
+            product.imageUrl = imageUrl;
+            return product;
+        } else {
+            // Nếu không có URL ảnh, dùng ảnh mặc định
+            Product product = new Product(name, priceOld, priceNew, R.drawable.giaymau);
+            product.imageUrl = null; // Không có URL, sẽ dùng imageRes
+            return product;
+        }
     }
     
     private void initSearch() {

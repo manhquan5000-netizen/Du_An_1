@@ -19,6 +19,8 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.bumptech.glide.Glide;
+import com.poly.ban_giay_app.R;
 import com.poly.ban_giay_app.models.Product;
 
 public class ProductDetailActivity extends AppCompatActivity {
@@ -139,7 +141,30 @@ public class ProductDetailActivity extends AppCompatActivity {
     }
 
     private void displayProduct() {
-        imgProduct.setImageResource(product.imageRes);
+        // Load image from URL if available, otherwise use resource
+        if (product.imageUrl != null && !product.imageUrl.isEmpty()) {
+            // Nếu là URL từ server
+            if (product.imageUrl.startsWith("http://") || product.imageUrl.startsWith("https://")) {
+                Glide.with(this)
+                        .load(product.imageUrl)
+                        .placeholder(R.drawable.giaymau)
+                        .error(R.drawable.giaymau)
+                        .into(imgProduct);
+            } else {
+                // Nếu là tên file ảnh (giay15, giay14, etc.), load từ drawable
+                int imageResId = getImageResourceId(product.imageUrl);
+                if (imageResId != 0) {
+                    imgProduct.setImageResource(imageResId);
+                } else {
+                    imgProduct.setImageResource(R.drawable.giaymau);
+                }
+            }
+        } else if (product.imageRes != 0) {
+            imgProduct.setImageResource(product.imageRes);
+        } else {
+            imgProduct.setImageResource(R.drawable.giaymau);
+        }
+        
         txtProductName.setText(product.name);
         
         // Extract brand from product name (first word after "Giày")
@@ -160,6 +185,23 @@ public class ProductDetailActivity extends AppCompatActivity {
         
         // Quantity
         txtQuantity.setText(String.valueOf(quantity));
+    }
+    
+    /**
+     * Lấy resource ID từ tên file ảnh (giay15, giay14, etc.)
+     */
+    private int getImageResourceId(String imageName) {
+        // Loại bỏ extension và path nếu có
+        String name = imageName;
+        if (name.contains("/")) {
+            name = name.substring(name.lastIndexOf("/") + 1);
+        }
+        if (name.contains(".")) {
+            name = name.substring(0, name.lastIndexOf("."));
+        }
+        
+        // Map tên file với resource ID
+        return getResources().getIdentifier(name, "drawable", getPackageName());
     }
 }
 

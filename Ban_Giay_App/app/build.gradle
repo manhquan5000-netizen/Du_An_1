@@ -14,8 +14,9 @@ android {
         versionName "1.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        // Trùng với base URL bạn dùng trong Postman: http://localhost:3000/api/...
-        buildConfigField "String", "API_BASE_URL", "\"http://10.0.2.2:3000/api/\""
+        // Base URL cho API - dùng IP máy tính khi test trên thiết bị thật
+        // Nếu test trên emulator, đổi thành: "http://10.0.2.2:3000/api/"
+        buildConfigField "String", "API_BASE_URL", "\"http://192.168.0.100:3000/api/\""
     }
 
     buildFeatures {

@@ -193,7 +193,7 @@ public class ProductResponse {
         if (priceOld != null && !priceOld.isEmpty()) return priceOld;
         if (priceOldCamel != null && !priceOldCamel.isEmpty()) return priceOldCamel;
         if (oldPrice != null && !oldPrice.isEmpty()) return oldPrice;
-        return "";
+        return null;
     }
 
     public String getPriceNew() {
@@ -206,7 +206,7 @@ public class ProductResponse {
         if (priceNewCamel != null && !priceNewCamel.isEmpty()) return priceNewCamel;
         if (newPrice != null && !newPrice.isEmpty()) return newPrice;
         if (price != null && !price.isEmpty()) return price;
-        return "";
+        return null;
     }
     
     // Getter cho Integer (để dùng trực tiếp)

@@ -23,7 +23,7 @@ import com.poly.ban_giay_app.models.Product;
 import java.util.List;
 
 public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.VH> {
-    private List<Product> items;
+    private final List<Product> items;
 
     public ProductAdapter(List<Product> items) {
         this.items = items;
@@ -91,7 +91,7 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.VH> {
 
         if (p.priceNew != null && !p.priceNew.isEmpty()) {
             holder.priceNew.setVisibility(View.VISIBLE);
-            holder.priceNew.setText("Giá: " + p.priceNew);
+            holder.priceNew.setText(holder.itemView.getContext().getString(R.string.price_label, p.priceNew));
         } else {
             holder.priceNew.setVisibility(View.GONE);
         }

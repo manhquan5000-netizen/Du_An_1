@@ -157,10 +157,12 @@ public class MainActivity extends AppCompatActivity {
     private void loadProductsFromApi() {
         if (!NetworkUtils.isConnected(this)) {
             Toast.makeText(this, "Không có kết nối mạng", Toast.LENGTH_SHORT).show();
+            Log.e("MainActivity", "No network connection");
             return;
         }
 
         Log.d("MainActivity", "Starting to load products from API...");
+        Log.d("MainActivity", "API Base URL: " + com.poly.ban_giay_app.BuildConfig.API_BASE_URL);
 
         // Load top selling products - dùng API mới
         apiService.getBestSellingProducts(10).enqueue(new Callback<List<ProductResponse>>() {
@@ -174,10 +176,17 @@ public class MainActivity extends AppCompatActivity {
                         if (products != null && !products.isEmpty()) {
                             topProductList.clear();
                             for (ProductResponse productResponse : products) {
-                                Product product = convertToProduct(productResponse);
-                                if (product != null && product.name != null && !product.name.isEmpty()) {
-                                    topProductList.add(product);
-                                    Log.d("MainActivity", "Added product: " + product.name + " - " + product.priceNew);
+                                if (productResponse != null) {
+                                    Log.d("MainActivity", "Processing product: " + productResponse.getName() + 
+                                          " - Price: " + productResponse.getPriceNew() + 
+                                          " - Image: " + productResponse.getImageUrl());
+                                    Product product = convertToProduct(productResponse);
+                                    if (product != null && product.name != null && !product.name.isEmpty()) {
+                                        topProductList.add(product);
+                                        Log.d("MainActivity", "Added product: " + product.name + " - " + product.priceNew);
+                                    } else {
+                                        Log.w("MainActivity", "Failed to convert product: " + productResponse.getName());
+                                    }
                                 }
                             }
                             runOnUiThread(() -> {
@@ -209,11 +218,16 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onFailure(Call<List<ProductResponse>> call, Throwable t) {
                 Log.e("MainActivity", "Failed to load top products", t);
+                Log.e("MainActivity", "Error type: " + t.getClass().getName());
+                Log.e("MainActivity", "Error message: " + t.getMessage());
+                if (t.getCause() != null) {
+                    Log.e("MainActivity", "Cause: " + t.getCause().getMessage());
+                }
                 t.printStackTrace();
                 runOnUiThread(() -> {
                     String errorMsg = t.getMessage();
                     if (errorMsg == null || errorMsg.isEmpty()) {
-                        errorMsg = "Không thể kết nối đến server";
+                        errorMsg = "Không thể kết nối đến server. Kiểm tra lại IP và server đang chạy.";
                     }
                     Toast.makeText(MainActivity.this, "Lỗi: " + errorMsg, Toast.LENGTH_LONG).show();
                 });
@@ -232,10 +246,17 @@ public class MainActivity extends AppCompatActivity {
                         if (products != null && !products.isEmpty()) {
                             menProductList.clear();
                             for (ProductResponse productResponse : products) {
-                                Product product = convertToProduct(productResponse);
-                                if (product != null && product.name != null && !product.name.isEmpty()) {
-                                    menProductList.add(product);
-                                    Log.d("MainActivity", "Added men product: " + product.name + " - " + product.priceNew);
+                                if (productResponse != null) {
+                                    Log.d("MainActivity", "Processing men product: " + productResponse.getName() + 
+                                          " - Price: " + productResponse.getPriceNew() + 
+                                          " - Image: " + productResponse.getImageUrl());
+                                    Product product = convertToProduct(productResponse);
+                                    if (product != null && product.name != null && !product.name.isEmpty()) {
+                                        menProductList.add(product);
+                                        Log.d("MainActivity", "Added men product: " + product.name + " - " + product.priceNew);
+                                    } else {
+                                        Log.w("MainActivity", "Failed to convert men product: " + productResponse.getName());
+                                    }
                                 }
                             }
                             runOnUiThread(() -> {
@@ -267,11 +288,16 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onFailure(Call<List<ProductResponse>> call, Throwable t) {
                 Log.e("MainActivity", "Failed to load men products", t);
+                Log.e("MainActivity", "Error type: " + t.getClass().getName());
+                Log.e("MainActivity", "Error message: " + t.getMessage());
+                if (t.getCause() != null) {
+                    Log.e("MainActivity", "Cause: " + t.getCause().getMessage());
+                }
                 t.printStackTrace();
                 runOnUiThread(() -> {
                     String errorMsg = t.getMessage();
                     if (errorMsg == null || errorMsg.isEmpty()) {
-                        errorMsg = "Không thể kết nối đến server";
+                        errorMsg = "Không thể kết nối đến server. Kiểm tra lại IP và server đang chạy.";
                     }
                     Toast.makeText(MainActivity.this, "Lỗi: " + errorMsg, Toast.LENGTH_LONG).show();
                 });
@@ -290,6 +316,7 @@ public class MainActivity extends AppCompatActivity {
      */
     private Product convertToProduct(ProductResponse productResponse) {
         if (productResponse == null) {
+            Log.w("MainActivity", "ProductResponse is null");
             return null;
         }
 
@@ -298,10 +325,33 @@ public class MainActivity extends AppCompatActivity {
         String priceNew = productResponse.getPriceNew();
         String imageUrl = productResponse.getImageUrl();
 
+        Log.d("MainActivity", "Converting product - Name: " + name + 
+              ", PriceOld: " + priceOld + ", PriceNew: " + priceNew + 
+              ", ImageUrl: " + imageUrl);
+
         // Đảm bảo có ít nhất tên sản phẩm
         if (name == null || name.trim().isEmpty()) {
             Log.w("MainActivity", "Product has no name, skipping");
             return null;
+        }
+
+        // Format giá - nếu là số, format thành VNĐ
+        if (priceOld != null && !priceOld.trim().isEmpty() && priceOld.matches("\\d+")) {
+            try {
+                int price = Integer.parseInt(priceOld);
+                priceOld = formatPrice(price);
+            } catch (NumberFormatException e) {
+                // Giữ nguyên nếu không parse được
+            }
+        }
+        
+        if (priceNew != null && !priceNew.trim().isEmpty() && priceNew.matches("\\d+")) {
+            try {
+                int price = Integer.parseInt(priceNew);
+                priceNew = formatPrice(price);
+            } catch (NumberFormatException e) {
+                // Giữ nguyên nếu không parse được
+            }
         }
 
         // Nếu không có giá mới, dùng giá cũ làm giá mới
@@ -318,16 +368,23 @@ public class MainActivity extends AppCompatActivity {
 
         // Tạo Product với URL ảnh (nếu có) hoặc resource mặc định
         if (imageUrl != null && !imageUrl.trim().isEmpty()) {
-            Product product = new Product(name, priceOld, priceNew, imageUrl);
+            Product product = new Product(name, priceOld != null ? priceOld : "", priceNew, imageUrl);
             // Đảm bảo imageUrl được set
             product.imageUrl = imageUrl;
             return product;
         } else {
             // Nếu không có URL ảnh, dùng ảnh mặc định
-            Product product = new Product(name, priceOld, priceNew, R.drawable.giaymau);
+            Product product = new Product(name, priceOld != null ? priceOld : "", priceNew, R.drawable.giaymau);
             product.imageUrl = null; // Không có URL, sẽ dùng imageRes
             return product;
         }
+    }
+    
+    /**
+     * Format giá thành định dạng VNĐ
+     */
+    private String formatPrice(int price) {
+        return String.format("%,d₫", price).replace(",", ".");
     }
     
     private void initSearch() {

@@ -57,6 +57,7 @@ public class ProductDetailActivity extends AppCompatActivity {
         initViews();
         bindActions();
         displayProduct();
+        setupBottomNavigation();
     }
 
     private void initViews() {
@@ -227,6 +228,60 @@ public class ProductDetailActivity extends AppCompatActivity {
         
         // Map tên file với resource ID
         return getResources().getIdentifier(name, "drawable", getPackageName());
+    }
+
+    private void setupBottomNavigation() {
+        // Trang chủ
+        View navHome = findViewById(R.id.navHome);
+        if (navHome != null) {
+            navHome.setOnClickListener(v -> {
+                Intent intent = new Intent(ProductDetailActivity.this, MainActivity.class);
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                startActivity(intent);
+                finish();
+            });
+        }
+
+        // Danh mục
+        View navCategories = findViewById(R.id.navCategories);
+        if (navCategories != null) {
+            navCategories.setOnClickListener(v -> {
+                Intent intent = new Intent(ProductDetailActivity.this, CategoriesActivity.class);
+                startActivity(intent);
+            });
+        }
+
+        // Giỏ hàng
+        View navCart = findViewById(R.id.navCart);
+        if (navCart != null) {
+            navCart.setOnClickListener(v -> {
+                // TODO: Navigate to cart screen when available
+                Toast.makeText(this, "Tính năng giỏ hàng đang phát triển", Toast.LENGTH_SHORT).show();
+            });
+        }
+
+        // Trợ giúp
+        View navHelp = findViewById(R.id.navHelp);
+        if (navHelp != null) {
+            navHelp.setOnClickListener(v -> {
+                // TODO: Navigate to help screen when available
+                Toast.makeText(this, "Tính năng trợ giúp đang phát triển", Toast.LENGTH_SHORT).show();
+            });
+        }
+
+        // Tài khoản
+        View navAccount = findViewById(R.id.navAccount);
+        if (navAccount != null) {
+            navAccount.setOnClickListener(v -> {
+                if (sessionManager.isLoggedIn()) {
+                    Intent intent = new Intent(ProductDetailActivity.this, AccountActivity.class);
+                    startActivity(intent);
+                } else {
+                    Intent intent = new Intent(ProductDetailActivity.this, LoginActivity.class);
+                    startActivity(intent);
+                }
+            });
+        }
     }
 }
 

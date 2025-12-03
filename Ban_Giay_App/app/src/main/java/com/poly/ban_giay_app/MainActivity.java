@@ -8,6 +8,7 @@ import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.view.View;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -84,6 +85,12 @@ public class MainActivity extends AppCompatActivity {
         
         // Init search functionality
         initSearch();
+
+        // Setup "Xem tất cả" buttons
+        setupViewAllButtons();
+
+        // Setup bottom navigation
+        setupBottomNavigation();
     }
 
     @Override
@@ -538,5 +545,65 @@ public class MainActivity extends AppCompatActivity {
         // Hide search results
         txtSearchTitle.setVisibility(View.GONE);
         rvSearchResults.setVisibility(View.GONE);
+    }
+
+    private void setupViewAllButtons() {
+        Button btnViewAllTop = findViewById(R.id.btnViewAllTop);
+        if (btnViewAllTop != null) {
+            btnViewAllTop.setOnClickListener(v -> {
+                Intent intent = new Intent(MainActivity.this, CategoriesActivity.class);
+                startActivity(intent);
+            });
+        }
+
+        Button btnViewAllMen = findViewById(R.id.btnViewAllMen);
+        if (btnViewAllMen != null) {
+            btnViewAllMen.setOnClickListener(v -> {
+                Intent intent = new Intent(MainActivity.this, CategoriesActivity.class);
+                startActivity(intent);
+            });
+        }
+    }
+
+    private void setupBottomNavigation() {
+        // Trang chủ - already on this screen, highlight it
+        View navHome = findViewById(R.id.navHome);
+        if (navHome != null) {
+            ImageView imgHome = navHome.findViewById(R.id.imgHomeIcon);
+            TextView tvHome = navHome.findViewById(R.id.tvHomeLabel);
+            if (imgHome != null) {
+                imgHome.setColorFilter(ContextCompat.getColor(this, R.color.teal_700));
+            }
+            if (tvHome != null) {
+                tvHome.setTextColor(ContextCompat.getColor(this, R.color.teal_700));
+            }
+        }
+
+        // Danh mục
+        View navCategories = findViewById(R.id.navCategories);
+        if (navCategories != null) {
+            navCategories.setOnClickListener(v -> {
+                Intent intent = new Intent(MainActivity.this, CategoriesActivity.class);
+                startActivity(intent);
+            });
+        }
+
+        // Giỏ hàng
+        View navCart = findViewById(R.id.navCart);
+        if (navCart != null) {
+            navCart.setOnClickListener(v -> {
+                // TODO: Navigate to cart screen when available
+                Toast.makeText(this, "Tính năng giỏ hàng đang phát triển", Toast.LENGTH_SHORT).show();
+            });
+        }
+
+        // Trợ giúp
+        View navHelp = findViewById(R.id.navHelp);
+        if (navHelp != null) {
+            navHelp.setOnClickListener(v -> {
+                // TODO: Navigate to help screen when available
+                Toast.makeText(this, "Tính năng trợ giúp đang phát triển", Toast.LENGTH_SHORT).show();
+            });
+        }
     }
 }

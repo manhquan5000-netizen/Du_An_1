@@ -29,6 +29,7 @@ import com.poly.ban_giay_app.network.ApiClient;
 import com.poly.ban_giay_app.network.ApiService;
 import com.poly.ban_giay_app.network.NetworkUtils;
 import com.poly.ban_giay_app.network.model.BaseResponse;
+import com.poly.ban_giay_app.network.model.ProductListResponse;
 import com.poly.ban_giay_app.network.model.ProductResponse;
 
 import java.util.ArrayList;
@@ -108,6 +109,15 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
         }
+
+        // Cart navigation
+        View navCart = findViewById(R.id.navCart);
+        if (navCart != null) {
+            navCart.setOnClickListener(v -> {
+                Intent intent = new Intent(MainActivity.this, CartActivity.class);
+                startActivity(intent);
+            });
+        }
     }
 
     private void updateAccountNavUi() {
@@ -156,8 +166,9 @@ public class MainActivity extends AppCompatActivity {
 
     private void loadProductsFromApi() {
         if (!NetworkUtils.isConnected(this)) {
-            Toast.makeText(this, "Không có kết nối mạng", Toast.LENGTH_SHORT).show();
-            Log.e("MainActivity", "No network connection");
+            Toast.makeText(this, "Không có kết nối mạng. Đang tải dữ liệu mẫu...", Toast.LENGTH_SHORT).show();
+            Log.e("MainActivity", "No network connection - loading sample data");
+            loadSampleProducts();
             return;
         }
 
@@ -195,9 +206,16 @@ public class MainActivity extends AppCompatActivity {
                                 Log.d("MainActivity", "Top products updated: " + topProductList.size());
                             });
                         } else {
-                            Log.w("MainActivity", "Top products list is empty or null");
+                            Log.w("MainActivity", "Top products list is empty or null - API returned empty array");
+                            // Nếu API trả về mảng rỗng, dùng sample data
                             runOnUiThread(() -> {
-                                Toast.makeText(MainActivity.this, "Không có sản phẩm bán chạy", Toast.LENGTH_SHORT).show();
+                                if (topProductList.isEmpty()) {
+                                    Log.w("MainActivity", "API returned empty, loading sample data for top products");
+                                    loadSampleTopProducts();
+                                    Toast.makeText(MainActivity.this, "Không có sản phẩm từ server. Đang hiển thị dữ liệu mẫu.", Toast.LENGTH_SHORT).show();
+                                } else {
+                                    Toast.makeText(MainActivity.this, "Không có sản phẩm bán chạy", Toast.LENGTH_SHORT).show();
+                                }
                             });
                         }
                     } else {
@@ -230,13 +248,20 @@ public class MainActivity extends AppCompatActivity {
                     Log.e("MainActivity", "Cause: " + t.getCause().getMessage());
                 }
                 t.printStackTrace();
-                runOnUiThread(() -> {
-                    String errorMsg = t.getMessage();
-                    if (errorMsg == null || errorMsg.isEmpty()) {
-                        errorMsg = "Không thể kết nối đến server. Kiểm tra lại IP và server đang chạy.";
-                    }
-                    Toast.makeText(MainActivity.this, "Lỗi: " + errorMsg, Toast.LENGTH_LONG).show();
-                });
+                
+                // Thử fallback API: getAllProducts hoặc legacy API
+                if (topProductList.isEmpty()) {
+                    Log.w("MainActivity", "Trying fallback API: getAllProducts for top products");
+                    tryFallbackTopProducts();
+                } else {
+                    runOnUiThread(() -> {
+                        String errorMsg = t.getMessage();
+                        if (errorMsg == null || errorMsg.isEmpty()) {
+                            errorMsg = "Không thể kết nối đến server. Đang dùng dữ liệu mẫu.";
+                        }
+                        Toast.makeText(MainActivity.this, "Lỗi: " + errorMsg, Toast.LENGTH_SHORT).show();
+                    });
+                }
             }
         });
 
@@ -271,9 +296,16 @@ public class MainActivity extends AppCompatActivity {
                                 Log.d("MainActivity", "Men products updated: " + menProductList.size());
                             });
                         } else {
-                            Log.w("MainActivity", "Men products list is empty or null");
+                            Log.w("MainActivity", "Men products list is empty or null - API returned empty array");
+                            // Nếu API trả về mảng rỗng, dùng sample data
                             runOnUiThread(() -> {
-                                Toast.makeText(MainActivity.this, "Không có sản phẩm nam", Toast.LENGTH_SHORT).show();
+                                if (menProductList.isEmpty()) {
+                                    Log.w("MainActivity", "API returned empty, loading sample data for men products");
+                                    loadSampleMenProducts();
+                                    Toast.makeText(MainActivity.this, "Không có sản phẩm từ server. Đang hiển thị dữ liệu mẫu.", Toast.LENGTH_SHORT).show();
+                                } else {
+                                    Toast.makeText(MainActivity.this, "Không có sản phẩm nam", Toast.LENGTH_SHORT).show();
+                                }
                             });
                         }
                     } else {
@@ -306,13 +338,20 @@ public class MainActivity extends AppCompatActivity {
                     Log.e("MainActivity", "Cause: " + t.getCause().getMessage());
                 }
                 t.printStackTrace();
-                runOnUiThread(() -> {
-                    String errorMsg = t.getMessage();
-                    if (errorMsg == null || errorMsg.isEmpty()) {
-                        errorMsg = "Không thể kết nối đến server. Kiểm tra lại IP và server đang chạy.";
-                    }
-                    Toast.makeText(MainActivity.this, "Lỗi: " + errorMsg, Toast.LENGTH_LONG).show();
-                });
+                
+                // Thử fallback API: getAllProducts hoặc legacy API
+                if (menProductList.isEmpty()) {
+                    Log.w("MainActivity", "Trying fallback API: getAllProducts for men products");
+                    tryFallbackMenProducts();
+                } else {
+                    runOnUiThread(() -> {
+                        String errorMsg = t.getMessage();
+                        if (errorMsg == null || errorMsg.isEmpty()) {
+                            errorMsg = "Không thể kết nối đến server. Đang dùng dữ liệu mẫu.";
+                        }
+                        Toast.makeText(MainActivity.this, "Lỗi: " + errorMsg, Toast.LENGTH_SHORT).show();
+                    });
+                }
             }
         });
     }
@@ -321,6 +360,250 @@ public class MainActivity extends AppCompatActivity {
         allProductList.clear();
         allProductList.addAll(topProductList);
         allProductList.addAll(menProductList);
+    }
+
+    /**
+     * Load dữ liệu mẫu khi không có kết nối API
+     */
+    private void loadSampleProducts() {
+        loadSampleTopProducts();
+        loadSampleMenProducts();
+    }
+
+    /**
+     * Load dữ liệu mẫu cho top products
+     */
+    private void loadSampleTopProducts() {
+        topProductList.clear();
+        
+        // Tạo các sản phẩm mẫu với ảnh từ drawable
+        topProductList.add(new Product(
+            "Giày Sneaker Nike Air Max",
+            "1.200.000₫",
+            "899.000₫",
+            R.drawable.giay2
+        ));
+        
+        topProductList.add(new Product(
+            "Giày Thể Thao Adidas Ultraboost",
+            "1.500.000₫",
+            "1.199.000₫",
+            R.drawable.giay3
+        ));
+        
+        topProductList.add(new Product(
+            "Giày Chạy Bộ Puma Speed",
+            "800.000₫",
+            "599.000₫",
+            R.drawable.giay4
+        ));
+        
+        topProductList.add(new Product(
+            "Giày Sneaker Converse Classic",
+            "900.000₫",
+            "699.000₫",
+            R.drawable.giay5
+        ));
+        
+        topProductList.add(new Product(
+            "Giày Thể Thao New Balance",
+            "1.100.000₫",
+            "849.000₫",
+            R.drawable.giay7
+        ));
+        
+        topProductAdapter.notifyDataSetChanged();
+        updateAllProductList();
+        Log.d("MainActivity", "✅ Loaded " + topProductList.size() + " sample top products");
+    }
+
+    /**
+     * Load dữ liệu mẫu cho men products
+     */
+    private void loadSampleMenProducts() {
+        menProductList.clear();
+        
+        // Tạo các sản phẩm mẫu cho giày nam
+        menProductList.add(new Product(
+            "Giày Nam Sneaker Vans Old Skool",
+            "1.000.000₫",
+            "749.000₫",
+            R.drawable.giay8
+        ));
+        
+        menProductList.add(new Product(
+            "Giày Nam Thể Thao Reebok",
+            "950.000₫",
+            "699.000₫",
+            R.drawable.giay9
+        ));
+        
+        menProductList.add(new Product(
+            "Giày Nam Chạy Bộ Asics",
+            "1.300.000₫",
+            "999.000₫",
+            R.drawable.giay10
+        ));
+        
+        menProductList.add(new Product(
+            "Giày Nam Sneaker Jordan",
+            "2.000.000₫",
+            "1.599.000₫",
+            R.drawable.giay11
+        ));
+        
+        menProductList.add(new Product(
+            "Giày Nam Thể Thao Under Armour",
+            "1.400.000₫",
+            "1.099.000₫",
+            R.drawable.giay12
+        ));
+        
+        menProductList.add(new Product(
+            "Giày Nam Sneaker Fila",
+            "850.000₫",
+            "649.000₫",
+            R.drawable.giay13
+        ));
+        
+        menProductList.add(new Product(
+            "Giày Nam Thể Thao Skechers",
+            "900.000₫",
+            "699.000₫",
+            R.drawable.giay14
+        ));
+        
+        menProductList.add(new Product(
+            "Giày Nam Chạy Bộ Mizuno",
+            "1.100.000₫",
+            "849.000₫",
+            R.drawable.giay15
+        ));
+        
+        menProductAdapter.notifyDataSetChanged();
+        updateAllProductList();
+        Log.d("MainActivity", "✅ Loaded " + menProductList.size() + " sample men products");
+    }
+
+    /**
+     * Thử fallback API cho top products khi API chính fail
+     */
+    private void tryFallbackTopProducts() {
+        Log.d("MainActivity", "Trying fallback API: getAllProducts for top products");
+        
+        // Thử dùng getAllProducts với limit 10
+        apiService.getAllProducts(1, 10, null, null, null, null, null, null).enqueue(new Callback<ProductListResponse>() {
+            @Override
+            public void onResponse(Call<ProductListResponse> call, Response<ProductListResponse> response) {
+                try {
+                    if (response.isSuccessful() && response.body() != null) {
+                        ProductListResponse productListResponse = response.body();
+                        List<ProductResponse> products = productListResponse.getProducts();
+                        
+                        if (products != null && !products.isEmpty()) {
+                            topProductList.clear();
+                            // Lấy 10 sản phẩm đầu tiên làm top products
+                            int count = Math.min(10, products.size());
+                            for (int i = 0; i < count; i++) {
+                                ProductResponse productResponse = products.get(i);
+                                if (productResponse != null) {
+                                    Product product = convertToProduct(productResponse);
+                                    if (product != null && product.name != null && !product.name.isEmpty()) {
+                                        topProductList.add(product);
+                                    }
+                                }
+                            }
+                            runOnUiThread(() -> {
+                                topProductAdapter.notifyDataSetChanged();
+                                updateAllProductList();
+                                Log.d("MainActivity", "✅ Fallback API success: Loaded " + topProductList.size() + " top products");
+                            });
+                            return;
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.e("MainActivity", "Error in fallback getAllProducts", e);
+                }
+                
+                // Nếu fallback API cũng fail, dùng sample data
+                runOnUiThread(() -> {
+                    if (topProductList.isEmpty()) {
+                        Log.w("MainActivity", "Fallback API failed, loading sample data");
+                        loadSampleTopProducts();
+                    }
+                });
+            }
+
+            @Override
+            public void onFailure(Call<ProductListResponse> call, Throwable t) {
+                Log.e("MainActivity", "Fallback API getAllProducts also failed", t);
+                runOnUiThread(() -> {
+                    if (topProductList.isEmpty()) {
+                        Log.w("MainActivity", "All APIs failed, loading sample data");
+                        loadSampleTopProducts();
+                    }
+                });
+            }
+        });
+    }
+
+    /**
+     * Thử fallback API cho men products khi API chính fail
+     */
+    private void tryFallbackMenProducts() {
+        Log.d("MainActivity", "Trying fallback API: getAllProducts for men products");
+        
+        // Thử dùng getAllProducts với filter danh_muc = "nam"
+        apiService.getAllProducts(1, 20, "nam", null, null, null, null, null).enqueue(new Callback<ProductListResponse>() {
+            @Override
+            public void onResponse(Call<ProductListResponse> call, Response<ProductListResponse> response) {
+                try {
+                    if (response.isSuccessful() && response.body() != null) {
+                        ProductListResponse productListResponse = response.body();
+                        List<ProductResponse> products = productListResponse.getProducts();
+                        
+                        if (products != null && !products.isEmpty()) {
+                            menProductList.clear();
+                            for (ProductResponse productResponse : products) {
+                                if (productResponse != null) {
+                                    Product product = convertToProduct(productResponse);
+                                    if (product != null && product.name != null && !product.name.isEmpty()) {
+                                        menProductList.add(product);
+                                    }
+                                }
+                            }
+                            runOnUiThread(() -> {
+                                menProductAdapter.notifyDataSetChanged();
+                                updateAllProductList();
+                                Log.d("MainActivity", "✅ Fallback API success: Loaded " + menProductList.size() + " men products");
+                            });
+                            return;
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.e("MainActivity", "Error in fallback getAllProducts for men", e);
+                }
+                
+                // Nếu fallback API cũng fail, dùng sample data
+                runOnUiThread(() -> {
+                    if (menProductList.isEmpty()) {
+                        Log.w("MainActivity", "Fallback API failed, loading sample data");
+                        loadSampleMenProducts();
+                    }
+                });
+            }
+
+            @Override
+            public void onFailure(Call<ProductListResponse> call, Throwable t) {
+                Log.e("MainActivity", "Fallback API getAllProducts for men also failed", t);
+                runOnUiThread(() -> {
+                    if (menProductList.isEmpty()) {
+                        Log.w("MainActivity", "All APIs failed, loading sample data");
+                        loadSampleMenProducts();
+                    }
+                });
+            }
+        });
     }
 
     /**
@@ -333,10 +616,21 @@ public class MainActivity extends AppCompatActivity {
         }
 
         String name = productResponse.getName();
+        
+        // Debug: Log tất cả các field ảnh từ API
+        productResponse.logImageFields(name);
+        
         String imageUrl = productResponse.getImageUrl();
 
         Log.d("MainActivity", "Converting product - Name: " + name + 
-              ", ImageUrl: " + imageUrl);
+              ", ImageUrl from getImageUrl(): " + imageUrl);
+        
+        // Log để kiểm tra xem API có trả về ảnh không
+        if (imageUrl == null || imageUrl.isEmpty()) {
+            Log.w("MainActivity", "⚠️ API không trả về dữ liệu ảnh cho sản phẩm: " + name);
+        } else {
+            Log.d("MainActivity", "✅ API có trả về ảnh: " + imageUrl);
+        }
 
         // Đảm bảo có ít nhất tên sản phẩm
         if (name == null || name.trim().isEmpty()) {
@@ -378,11 +672,13 @@ public class MainActivity extends AppCompatActivity {
                 name, 
                 priceOld != null ? priceOld : "", 
                 priceNew, 
-                imageUrl
+                imageUrl.trim()
             );
             // Đảm bảo imageUrl được set
-            product.imageUrl = imageUrl;
-            Log.d("MainActivity", "Created product with imageUrl: " + imageUrl);
+            product.imageUrl = imageUrl.trim();
+            // Đảm bảo imageRes = 0 khi dùng imageUrl
+            product.imageRes = 0;
+            Log.d("MainActivity", "✅ Created product with imageUrl: " + product.imageUrl);
             return product;
         } else {
             // Nếu không có URL ảnh, dùng ảnh mặc định
@@ -392,8 +688,10 @@ public class MainActivity extends AppCompatActivity {
                 priceNew, 
                 R.drawable.giaymau
             );
-            product.imageUrl = null; // Không có URL, sẽ dùng imageRes
-            Log.d("MainActivity", "Created product with default image");
+            // Đảm bảo imageUrl = null và imageRes được set
+            product.imageUrl = null;
+            product.imageRes = R.drawable.giaymau;
+            Log.d("MainActivity", "✅ Created product with default image (imageRes: " + product.imageRes + ")");
             return product;
         }
     }

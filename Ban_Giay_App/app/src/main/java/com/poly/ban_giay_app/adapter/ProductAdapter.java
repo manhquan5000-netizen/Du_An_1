@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.style.StrikethroughSpan;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -54,29 +55,69 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.VH> {
     public void onBindViewHolder(@NonNull VH holder, int position) {
         Product p = items.get(position);
         
-        // Load image from URL if available, otherwise use resource
-        if (p.imageUrl != null && !p.imageUrl.isEmpty()) {
-            // Nếu là URL từ server
-            if (p.imageUrl.startsWith("http://") || p.imageUrl.startsWith("https://")) {
-                Glide.with(holder.itemView.getContext())
-                        .load(p.imageUrl)
-                        .placeholder(R.drawable.giaymau) // Placeholder while loading
-                        .error(R.drawable.giaymau) // Error image if load fails
-                        .into(holder.img);
+        // Load image - đảm bảo luôn có ảnh hiển thị
+        holder.img.setVisibility(View.VISIBLE);
+        holder.img.setImageResource(0); // Clear previous image
+        
+        // Debug log
+        Log.d("ProductAdapter", "=== Loading image for: " + p.name + " ===");
+        Log.d("ProductAdapter", "imageUrl: " + (p.imageUrl != null ? p.imageUrl : "null"));
+        Log.d("ProductAdapter", "imageRes: " + p.imageRes);
+        
+        boolean imageLoaded = false;
+        
+        // Ưu tiên 1: Load từ imageUrl (URL từ server)
+        if (p.imageUrl != null && !p.imageUrl.trim().isEmpty()) {
+            String url = p.imageUrl.trim();
+            if (url.startsWith("http://") || url.startsWith("https://")) {
+                Log.d("ProductAdapter", "✅ Loading from URL: " + url);
+                try {
+                    Glide.with(holder.itemView.getContext())
+                            .load(url)
+                            .placeholder(R.drawable.giaymau)
+                            .error(R.drawable.giaymau)
+                            .centerCrop()
+                            .into(holder.img);
+                    imageLoaded = true;
+                } catch (Exception e) {
+                    Log.e("ProductAdapter", "❌ Error loading from URL: " + e.getMessage());
+                }
             } else {
-                // Nếu là tên file ảnh (giay15, giay14, etc.), load từ drawable
-                int imageResId = getImageResourceId(holder.itemView.getContext(), p.imageUrl);
+                // Ưu tiên 2: Load từ drawable bằng tên file
+                Log.d("ProductAdapter", "Loading from drawable name: " + url);
+                int imageResId = getImageResourceId(holder.itemView.getContext(), url);
+                Log.d("ProductAdapter", "Image resource ID: " + imageResId);
                 if (imageResId != 0) {
-                    holder.img.setImageResource(imageResId);
-                } else {
-                    holder.img.setImageResource(R.drawable.giaymau);
+                    try {
+                        holder.img.setImageResource(imageResId);
+                        imageLoaded = true;
+                        Log.d("ProductAdapter", "✅ Loaded from drawable: " + url);
+                    } catch (Exception e) {
+                        Log.e("ProductAdapter", "❌ Error loading from drawable: " + e.getMessage());
+                    }
                 }
             }
-        } else if (p.imageRes != 0) {
-            holder.img.setImageResource(p.imageRes);
-        } else {
+        }
+        
+        // Ưu tiên 3: Load từ imageRes
+        if (!imageLoaded && p.imageRes != 0) {
+            Log.d("ProductAdapter", "Loading from imageRes: " + p.imageRes);
+            try {
+                holder.img.setImageResource(p.imageRes);
+                imageLoaded = true;
+                Log.d("ProductAdapter", "✅ Loaded from imageRes");
+            } catch (Exception e) {
+                Log.e("ProductAdapter", "❌ Error loading from imageRes: " + e.getMessage());
+            }
+        }
+        
+        // Fallback: Luôn có ảnh mặc định
+        if (!imageLoaded) {
+            Log.w("ProductAdapter", "⚠️ Using default image (no imageUrl or imageRes)");
             holder.img.setImageResource(R.drawable.giaymau);
         }
+        
+        Log.d("ProductAdapter", "=========================================");
         
         holder.name.setText(p.name);
 

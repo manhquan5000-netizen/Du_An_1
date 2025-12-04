@@ -288,4 +288,19 @@ public class ProductResponse {
         if (status != null && !status.isEmpty()) return status;
         return "active";
     }
+
+    /**
+     * Debug method: Log tất cả các field ảnh để kiểm tra API trả về field nào
+     */
+    public void logImageFields(String productName) {
+        android.util.Log.d("ProductResponse", "=== DEBUG IMAGE FIELDS for: " + productName + " ===");
+        android.util.Log.d("ProductResponse", "hinh_anh: " + (hinhAnh != null ? hinhAnh : "null"));
+        android.util.Log.d("ProductResponse", "hinhAnh (camel): " + (hinhAnhCamel != null ? hinhAnhCamel : "null"));
+        android.util.Log.d("ProductResponse", "image: " + (image != null ? image : "null"));
+        android.util.Log.d("ProductResponse", "image_url: " + (imageUrl != null ? imageUrl : "null"));
+        android.util.Log.d("ProductResponse", "imageUrl (camel): " + (imageUrlCamel != null ? imageUrlCamel : "null"));
+        android.util.Log.d("ProductResponse", "anh: " + (anh != null ? anh : "null"));
+        android.util.Log.d("ProductResponse", "getImageUrl() result: " + getImageUrl());
+        android.util.Log.d("ProductResponse", "=========================================");
+    }
 }

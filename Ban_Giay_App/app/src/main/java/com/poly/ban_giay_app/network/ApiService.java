@@ -58,8 +58,7 @@ public interface ApiService {
             @Query("min_price") Integer minPrice,
             @Query("max_price") Integer maxPrice,
             @Query("search") String search,
-            @Query("sort_by") String sortBy,
-            @Query("sort_order") String sortOrder
+            @Query("sort_by") String sortBy
     );
 
     // GET http://YOUR_IP:3000/api/product/:id

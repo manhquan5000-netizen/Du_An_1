@@ -133,20 +133,41 @@ public class ProductDetailActivity extends AppCompatActivity {
                 return;
             }
             
+            // Kiểm tra product ID
+            if (product.id == null || product.id.isEmpty()) {
+                Toast.makeText(this, "Lỗi: Sản phẩm không có ID. Vui lòng thử lại sau.", Toast.LENGTH_LONG).show();
+                Log.e("ProductDetailActivity", "Product ID is null or empty. Product name: " + product.name);
+                return;
+            }
+            
             // Disable button để tránh click nhiều lần
             btnAddToCart.setEnabled(false);
             btnAddToCart.setText("Đang thêm...");
             
-            // Hiển thị thông báo ngay lập tức
-            Toast.makeText(this, "Đã thêm vào giỏ hàng thành công!", Toast.LENGTH_SHORT).show();
+            // Hiển thị thông báo đang xử lý
+            Toast.makeText(this, "Đang thêm vào giỏ hàng...", Toast.LENGTH_SHORT).show();
+            
+            Log.d("ProductDetailActivity", "=== ADDING TO CART ===");
+            Log.d("ProductDetailActivity", "Product ID: " + product.id);
+            Log.d("ProductDetailActivity", "Product Name: " + product.name);
+            Log.d("ProductDetailActivity", "Size: " + selectedSize);
+            Log.d("ProductDetailActivity", "Quantity: " + quantity);
             
             CartManager.getInstance().addToCart(product, selectedSize, quantity, new CartManager.CartCallback() {
                 @Override
                 public void onSuccess(String message) {
                     runOnUiThread(() -> {
-                        // Nếu message khác với thông báo mặc định, hiển thị lại
-                        if (message.contains("chỉ lưu cục bộ") && !message.equals("Đã thêm vào giỏ hàng thành công!")) {
-                            Toast.makeText(ProductDetailActivity.this, message, Toast.LENGTH_LONG).show();
+                        // Hiển thị thông báo từ server
+                        if (message != null && !message.isEmpty()) {
+                            if (message.contains("chỉ lưu cục bộ")) {
+                                // Cảnh báo nếu chỉ lưu cục bộ
+                                Toast.makeText(ProductDetailActivity.this, message, Toast.LENGTH_LONG).show();
+                            } else {
+                                // Thành công lưu lên server
+                                Toast.makeText(ProductDetailActivity.this, message, Toast.LENGTH_SHORT).show();
+                            }
+                        } else {
+                            Toast.makeText(ProductDetailActivity.this, "Đã thêm vào giỏ hàng thành công!", Toast.LENGTH_SHORT).show();
                         }
                         btnAddToCart.setEnabled(true);
                         btnAddToCart.setText("THÊM VÀO GIỎ");
@@ -156,9 +177,11 @@ public class ProductDetailActivity extends AppCompatActivity {
                 @Override
                 public void onError(String error) {
                     runOnUiThread(() -> {
-                        // Nếu có lỗi khi lưu lên server, vẫn đã thêm vào giỏ hàng cục bộ
-                        // Không cần hiển thị lại vì đã hiển thị ở trên
-                        Log.w("ProductDetailActivity", "Error saving to server: " + error);
+                        // Hiển thị lỗi nhưng vẫn thông báo đã thêm vào giỏ hàng cục bộ
+                        Log.e("ProductDetailActivity", "Error saving to server: " + error);
+                        Toast.makeText(ProductDetailActivity.this, 
+                            "Đã thêm vào giỏ hàng (chỉ lưu cục bộ). Lỗi: " + error, 
+                            Toast.LENGTH_LONG).show();
                         btnAddToCart.setEnabled(true);
                         btnAddToCart.setText("THÊM VÀO GIỎ");
                     });

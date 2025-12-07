@@ -43,45 +43,19 @@ public class RegisterActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_register);
-        
-        // Apply insets asynchronously to avoid blocking
-        View mainView = findViewById(R.id.main);
-        if (mainView != null) {
-            ViewCompat.setOnApplyWindowInsetsListener(mainView, (v, insets) -> {
-                Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-                v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
-                return insets;
-            });
-        }
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+            return insets;
+        });
 
         apiService = ApiClient.getApiService();
-        
-        // Initialize ProgressDialog with proper configuration
-        try {
-            progressDialog = new ProgressDialog(this);
-            progressDialog.setMessage(getString(R.string.registering));
-            progressDialog.setCancelable(false);
-            progressDialog.setCanceledOnTouchOutside(false);
-        } catch (Exception e) {
-            // Fallback if ProgressDialog fails
-            android.util.Log.e("RegisterActivity", "Error creating ProgressDialog", e);
-        }
+        progressDialog = new ProgressDialog(this);
+        progressDialog.setMessage(getString(R.string.registering));
+        progressDialog.setCancelable(false);
 
         initViews();
         bindActions();
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        // Safely dismiss progress dialog
-        try {
-            if (progressDialog != null && progressDialog.isShowing()) {
-                progressDialog.dismiss();
-            }
-        } catch (Exception e) {
-            android.util.Log.e("RegisterActivity", "Error in onDestroy", e);
-        }
     }
 
     private void initViews() {
@@ -136,59 +110,36 @@ public class RegisterActivity extends AppCompatActivity {
     }
 
     private void attemptRegister() {
-        String email = edtPhoneEmail != null ? edtPhoneEmail.getText().toString().trim() : "";
-        String password = edtPassword != null ? edtPassword.getText().toString().trim() : "";
-        String confirmPassword = edtConfirmPassword != null ? edtConfirmPassword.getText().toString().trim() : "";
+        String email = edtPhoneEmail.getText().toString().trim();
+        String password = edtPassword.getText().toString().trim();
+        String confirmPassword = edtConfirmPassword.getText().toString().trim();
 
         if (TextUtils.isEmpty(email)) {
-            if (edtPhoneEmail != null) {
-                edtPhoneEmail.setError(getString(R.string.error_email_required));
-            }
+            edtPhoneEmail.setError(getString(R.string.error_email_required));
             return;
         }
 
         if (TextUtils.isEmpty(password)) {
-            if (edtPassword != null) {
-                edtPassword.setError(getString(R.string.error_password_required));
-            }
+            edtPassword.setError(getString(R.string.error_password_required));
             return;
         }
 
         if (TextUtils.isEmpty(confirmPassword)) {
-            if (edtConfirmPassword != null) {
-                edtConfirmPassword.setError(getString(R.string.error_confirm_password));
-            }
+            edtConfirmPassword.setError(getString(R.string.error_confirm_password));
             return;
         }
 
         if (!password.equals(confirmPassword)) {
-            if (edtConfirmPassword != null) {
-                edtConfirmPassword.setError(getString(R.string.error_password_mismatch));
-            }
+            edtConfirmPassword.setError(getString(R.string.error_password_mismatch));
             return;
         }
 
-        // Check network connection - non-blocking
-        try {
-            if (!NetworkUtils.isConnected(this)) {
-                Toast.makeText(this, R.string.error_no_connection, Toast.LENGTH_SHORT).show();
-                return;
-            }
-        } catch (Exception e) {
-            android.util.Log.e("RegisterActivity", "Error checking network", e);
-            Toast.makeText(this, "Lỗi kiểm tra kết nối mạng", Toast.LENGTH_SHORT).show();
+        if (!NetworkUtils.isConnected(this)) {
+            Toast.makeText(this, R.string.error_no_connection, Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // Show progress dialog safely
-        try {
-            if (progressDialog != null && !progressDialog.isShowing()) {
-                progressDialog.show();
-            }
-        } catch (Exception e) {
-            android.util.Log.e("RegisterActivity", "Error showing progress dialog", e);
-        }
-
+        progressDialog.show();
         String username = deriveUsername(email);
         String fullName = username;
 
@@ -196,45 +147,19 @@ public class RegisterActivity extends AppCompatActivity {
         apiService.register(request).enqueue(new Callback<BaseResponse<UserResponse>>() {
             @Override
             public void onResponse(Call<BaseResponse<UserResponse>> call, Response<BaseResponse<UserResponse>> response) {
-                // Dismiss progress dialog safely
-                try {
-                    if (progressDialog != null && progressDialog.isShowing()) {
-                        progressDialog.dismiss();
-                    }
-                } catch (Exception e) {
-                    android.util.Log.e("RegisterActivity", "Error dismissing progress dialog", e);
-                }
-
+                progressDialog.dismiss();
                 if (response.isSuccessful() && response.body() != null) {
-                    try {
-                        Toast.makeText(RegisterActivity.this, response.body().getMessage(), Toast.LENGTH_SHORT).show();
-                        finish();
-                    } catch (Exception e) {
-                        android.util.Log.e("RegisterActivity", "Error processing register response", e);
-                        Toast.makeText(RegisterActivity.this, "Lỗi xử lý đăng ký", Toast.LENGTH_SHORT).show();
-                    }
+                    Toast.makeText(RegisterActivity.this, response.body().getMessage(), Toast.LENGTH_SHORT).show();
+                    finish();
                 } else {
-                    String errorMsg = NetworkUtils.extractErrorMessage(response);
-                    Toast.makeText(RegisterActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(RegisterActivity.this, NetworkUtils.extractErrorMessage(response), Toast.LENGTH_SHORT).show();
                 }
             }
 
             @Override
             public void onFailure(Call<BaseResponse<UserResponse>> call, Throwable t) {
-                // Dismiss progress dialog safely
-                try {
-                    if (progressDialog != null && progressDialog.isShowing()) {
-                        progressDialog.dismiss();
-                    }
-                } catch (Exception e) {
-                    android.util.Log.e("RegisterActivity", "Error dismissing progress dialog", e);
-                }
-
-                String errorMsg = t != null && t.getLocalizedMessage() != null 
-                    ? t.getLocalizedMessage() 
-                    : "Không thể kết nối đến server";
-                Toast.makeText(RegisterActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
-                android.util.Log.e("RegisterActivity", "Register failed", t);
+                progressDialog.dismiss();
+                Toast.makeText(RegisterActivity.this, t.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
             }
         });
     }

@@ -388,8 +388,8 @@ public class CategoriesActivity extends AppCompatActivity {
             View navHelp = findViewById(R.id.navHelp);
             if (navHelp != null) {
                 navHelp.setOnClickListener(v -> {
-                    // TODO: Navigate to help screen when available
-                    Toast.makeText(this, "Tính năng trợ giúp đang phát triển", Toast.LENGTH_SHORT).show();
+                    Intent intent = new Intent(CategoriesActivity.this, HelpActivity.class);
+                    startActivity(intent);
                 });
             }
         } catch (Exception e) {

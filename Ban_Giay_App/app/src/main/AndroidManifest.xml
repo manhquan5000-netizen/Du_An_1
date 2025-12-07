@@ -58,6 +58,9 @@
         <activity
             android:name=".BankPaymentActivity"
             android:exported="false" />
+        <activity
+            android:name=".HelpActivity"
+            android:exported="false" />
     </application>
 
 </manifest>

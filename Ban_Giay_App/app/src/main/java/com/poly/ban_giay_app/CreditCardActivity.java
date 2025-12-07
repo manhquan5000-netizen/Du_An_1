@@ -429,7 +429,8 @@ public class CreditCardActivity extends AppCompatActivity {
         View navHelp = findViewById(R.id.navHelp);
         if (navHelp != null) {
             navHelp.setOnClickListener(v -> {
-                Toast.makeText(this, "Tính năng trợ giúp đang phát triển", Toast.LENGTH_SHORT).show();
+                Intent intent = new Intent(CreditCardActivity.this, HelpActivity.class);
+                startActivity(intent);
             });
         }
 

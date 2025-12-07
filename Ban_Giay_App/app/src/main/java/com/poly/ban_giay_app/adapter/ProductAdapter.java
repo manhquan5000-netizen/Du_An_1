@@ -56,8 +56,8 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.VH> {
         
         // Load image from URL if available, otherwise use resource
         if (p.imageUrl != null && !p.imageUrl.isEmpty()) {
-            // Nếu là URL từ server hoặc content URI
-            if (p.imageUrl.startsWith("http://") || p.imageUrl.startsWith("https://") || p.imageUrl.startsWith("content://")) {
+            // Nếu là URL từ server
+            if (p.imageUrl.startsWith("http://") || p.imageUrl.startsWith("https://")) {
                 Glide.with(holder.itemView.getContext())
                         .load(p.imageUrl)
                         .placeholder(R.drawable.giaymau) // Placeholder while loading
@@ -66,24 +66,14 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.VH> {
             } else {
                 // Nếu là tên file ảnh (giay15, giay14, etc.), load từ drawable
                 int imageResId = getImageResourceId(holder.itemView.getContext(), p.imageUrl);
-                // Kiểm tra resource ID có hợp lệ không (phải > 0 và không phải là giá trị lỗi)
-                if (imageResId > 0) {
-                    try {
-                        holder.img.setImageResource(imageResId);
-                    } catch (Exception e) {
-                        // Nếu set resource thất bại, dùng ảnh mặc định
-                        holder.img.setImageResource(R.drawable.giaymau);
-                    }
+                if (imageResId != 0) {
+                    holder.img.setImageResource(imageResId);
                 } else {
                     holder.img.setImageResource(R.drawable.giaymau);
                 }
             }
         } else if (p.imageRes != 0) {
-            try {
-                holder.img.setImageResource(p.imageRes);
-            } catch (Exception e) {
-                holder.img.setImageResource(R.drawable.giaymau);
-            }
+            holder.img.setImageResource(p.imageRes);
         } else {
             holder.img.setImageResource(R.drawable.giaymau);
         }
@@ -130,36 +120,16 @@ public class ProductAdapter extends RecyclerView.Adapter<ProductAdapter.VH> {
      * Lấy resource ID từ tên file ảnh (giay15, giay14, etc.)
      */
     private int getImageResourceId(Context context, String imageName) {
-        try {
-            // Loại bỏ extension và path nếu có
-            String name = imageName;
-            if (name.contains("/")) {
-                name = name.substring(name.lastIndexOf("/") + 1);
-            }
-            if (name.contains(".")) {
-                name = name.substring(0, name.lastIndexOf("."));
-            }
-            
-            // Bỏ qua nếu tên rỗng hoặc chứa ký tự đặc biệt không hợp lệ
-            if (name == null || name.trim().isEmpty() || name.contains(":") || name.contains(" ")) {
-                return 0;
-            }
-            
-            // Map tên file với resource ID
-            int resId = context.getResources().getIdentifier(name, "drawable", context.getPackageName());
-            // Kiểm tra resource ID có tồn tại thực sự không
-            if (resId > 0) {
-                try {
-                    // Thử truy cập resource để đảm bảo nó tồn tại
-                    context.getResources().getDrawable(resId, null);
-                    return resId;
-                } catch (Exception e) {
-                    return 0;
-                }
-            }
-            return 0;
-        } catch (Exception e) {
-            return 0;
+        // Loại bỏ extension và path nếu có
+        String name = imageName;
+        if (name.contains("/")) {
+            name = name.substring(name.lastIndexOf("/") + 1);
         }
+        if (name.contains(".")) {
+            name = name.substring(0, name.lastIndexOf("."));
+        }
+        
+        // Map tên file với resource ID
+        return context.getResources().getIdentifier(name, "drawable", context.getPackageName());
     }
 }

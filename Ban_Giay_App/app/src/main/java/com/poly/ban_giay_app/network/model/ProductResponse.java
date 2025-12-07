@@ -174,6 +174,10 @@ public class ProductResponse {
     public String getId() {
         return id;
     }
+    
+    public void setId(String id) {
+        this.id = id;
+    }
 
     public String getName() {
         // Ưu tiên các field theo thứ tự
@@ -216,10 +220,42 @@ public class ProductResponse {
         return null;
     }
     
+    public void setGiaGoc(Integer giaGoc) {
+        this.giaGoc = giaGoc;
+    }
+    
     public Integer getGiaKhuyenMai() {
         if (giaKhuyenMai != null) return giaKhuyenMai;
         if (giaKhuyenMaiCamel != null) return giaKhuyenMaiCamel;
         return null;
+    }
+    
+    public void setGiaKhuyenMai(Integer giaKhuyenMai) {
+        this.giaKhuyenMai = giaKhuyenMai;
+    }
+    
+    public void setName(String name) {
+        this.tenSanPham = name;
+    }
+    
+    public void setHinhAnh(String hinhAnh) {
+        this.hinhAnh = hinhAnh;
+    }
+    
+    public void setMoTa(String moTa) {
+        this.moTa = moTa;
+    }
+    
+    public void setThuongHieu(String thuongHieu) {
+        this.thuongHieu = thuongHieu;
+    }
+    
+    public void setDanhMuc(String danhMuc) {
+        this.danhMuc = danhMuc;
+    }
+    
+    public void setDanhGia(Double danhGia) {
+        this.danhGia = danhGia;
     }
 
     public String getImageUrl() {
@@ -287,5 +323,20 @@ public class ProductResponse {
         if (trangThaiCamel != null && !trangThaiCamel.isEmpty()) return trangThaiCamel;
         if (status != null && !status.isEmpty()) return status;
         return "active";
+    }
+
+    /**
+     * Debug method: Log tất cả các field ảnh để kiểm tra API trả về field nào
+     */
+    public void logImageFields(String productName) {
+        android.util.Log.d("ProductResponse", "=== DEBUG IMAGE FIELDS for: " + productName + " ===");
+        android.util.Log.d("ProductResponse", "hinh_anh: " + (hinhAnh != null ? hinhAnh : "null"));
+        android.util.Log.d("ProductResponse", "hinhAnh (camel): " + (hinhAnhCamel != null ? hinhAnhCamel : "null"));
+        android.util.Log.d("ProductResponse", "image: " + (image != null ? image : "null"));
+        android.util.Log.d("ProductResponse", "image_url: " + (imageUrl != null ? imageUrl : "null"));
+        android.util.Log.d("ProductResponse", "imageUrl (camel): " + (imageUrlCamel != null ? imageUrlCamel : "null"));
+        android.util.Log.d("ProductResponse", "anh: " + (anh != null ? anh : "null"));
+        android.util.Log.d("ProductResponse", "getImageUrl() result: " + getImageUrl());
+        android.util.Log.d("ProductResponse", "=========================================");
     }
 }

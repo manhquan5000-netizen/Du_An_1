@@ -50,12 +50,14 @@
     </LinearLayout>
 
     <ScrollView
+        android:id="@+id/scrollView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:fillViewport="true"
         android:clipToPadding="false"
-        android:paddingBottom="200dp"
-        android:layout_below="@id/headerLayout">
+        android:paddingBottom="160dp"
+        android:layout_below="@id/headerLayout"
+        android:layout_above="@id/layoutBuyButton">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -267,22 +269,46 @@
                 android:textColor="#FFFFFF"
                 android:backgroundTint="#E53935"
                 android:layout_marginBottom="12dp" />
-
-            <!-- Nút Mua ngay -->
-            <Button
-                android:id="@+id/btnBuyNow"
-                android:layout_width="match_parent"
-                android:layout_height="56dp"
-                android:text="MUA NGAY"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:textColor="#FFFFFF"
-                android:backgroundTint="#E53935" />
         </LinearLayout>
     </ScrollView>
 
+    <!-- Thanh mua hàng cố định ở dưới -->
+    <LinearLayout
+        android:id="@+id/layoutBuyButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#FFFFFF"
+        android:elevation="12dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="12dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:layout_above="@id/bottomNav"
+        android:minHeight="72dp">
+
+        <!-- Nút Mua ngay với giá hiển thị bên trong -->
+        <Button
+            android:id="@+id/btnBuyNow"
+            android:layout_width="match_parent"
+            android:layout_height="72dp"
+            android:text="MUA NGAY\n899.000₫"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#E53935"
+            android:gravity="center"
+            android:elevation="4dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:lineSpacingExtra="4dp" />
+    </LinearLayout>
+
     <!-- Bottom nav -->
     <LinearLayout
+        android:id="@+id/bottomNav"
         android:layout_width="match_parent"
         android:layout_height="60dp"
         android:layout_alignParentBottom="true"

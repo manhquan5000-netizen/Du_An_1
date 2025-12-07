@@ -1,77 +1,83 @@
-// Script test API sản phẩm
-const axios = require("axios");
+/**
+ * Script test API để kiểm tra kết nối và dữ liệu
+ * Chạy: node test-api.js
+ */
 
-const BASE_URL = "http://localhost:3000/api/product";
+const mongoose = require("mongoose");
+const Product = require("./models/Product");
 
-// Test data
-const testProduct = {
-  ten_san_pham: "Giày Test API",
-  gia_goc: 2000000,
-  gia_khuyen_mai: 1500000,
-  hinh_anh: "https://example.com/test.jpg",
-  mo_ta: "Sản phẩm test từ API",
-  thuong_hieu: "Test Brand",
-  danh_muc: "unisex",
-  kich_thuoc: ["40", "41", "42"],
-  so_luong_ton: 10,
-  danh_gia: 4.5,
-  trang_thai: "active",
-};
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/BanGiay_App";
 
-async function testAPI() {
-  console.log("🧪 Bắt đầu test API sản phẩm...\n");
-
+async function testConnection() {
   try {
-    // Test 1: Lấy tất cả sản phẩm
-    console.log("1️⃣ Test GET /api/product");
-    const getAllResponse = await axios.get(BASE_URL);
-    console.log("✅ Thành công:", getAllResponse.data.products?.length || 0, "sản phẩm");
-    console.log("");
-
-    // Test 2: Tạo sản phẩm mới
-    console.log("2️⃣ Test POST /api/product");
-    const createResponse = await axios.post(BASE_URL, testProduct);
-    console.log("✅ Thành công:", createResponse.data.message);
-    const productId = createResponse.data.product._id;
-    console.log("ID sản phẩm:", productId);
-    console.log("");
-
-    // Test 3: Lấy sản phẩm theo ID
-    console.log("3️⃣ Test GET /api/product/:id");
-    const getByIdResponse = await axios.get(`${BASE_URL}/${productId}`);
-    console.log("✅ Thành công:", getByIdResponse.data.product.ten_san_pham);
-    console.log("");
-
-    // Test 4: Cập nhật sản phẩm
-    console.log("4️⃣ Test PUT /api/product/:id");
-    const updateResponse = await axios.put(`${BASE_URL}/${productId}`, {
-      gia_khuyen_mai: 1400000,
-    });
-    console.log("✅ Thành công:", updateResponse.data.message);
-    console.log("");
-
-    // Test 5: Lấy sản phẩm bán chạy
-    console.log("5️⃣ Test GET /api/product/best-selling");
-    const bestSellingResponse = await axios.get(`${BASE_URL}/best-selling?limit=5`);
-    console.log("✅ Thành công:", bestSellingResponse.data.length, "sản phẩm");
-    console.log("");
-
-    // Test 6: Xóa sản phẩm test
-    console.log("6️⃣ Test DELETE /api/product/:id");
-    const deleteResponse = await axios.delete(`${BASE_URL}/${productId}`);
-    console.log("✅ Thành công:", deleteResponse.data.message);
-    console.log("");
-
-    console.log("🎉 Tất cả test đều thành công!");
-  } catch (error) {
-    console.error("❌ Lỗi:", error.response?.data || error.message);
-    if (error.response) {
-      console.error("Status:", error.response.status);
-      console.error("Data:", JSON.stringify(error.response.data, null, 2));
+    console.log("\n========== TESTING API CONNECTION ==========\n");
+    
+    // 1. Test MongoDB connection
+    console.log("1. Testing MongoDB connection...");
+    await mongoose.connect(MONGODB_URI);
+    console.log("✅ MongoDB connected successfully!");
+    
+    // 2. Check total products
+    console.log("\n2. Checking products in database...");
+    const totalProducts = await Product.countDocuments();
+    console.log(`   Total products: ${totalProducts}`);
+    
+    // 3. Check active products
+    const activeProducts = await Product.countDocuments({ trang_thai: "active" });
+    console.log(`   Active products: ${activeProducts}`);
+    
+    // 4. Check products by category
+    console.log("\n3. Products by category:");
+    const categories = ["nam", "nu", "unisex"];
+    for (const cat of categories) {
+      const count = await Product.countDocuments({ danh_muc: cat, trang_thai: "active" });
+      console.log(`   ${cat}: ${count} products`);
     }
+    
+    // 5. Get sample products
+    console.log("\n4. Sample products:");
+    const sampleProducts = await Product.find({ trang_thai: "active" }).limit(5);
+    if (sampleProducts.length > 0) {
+      sampleProducts.forEach((p, index) => {
+        console.log(`   ${index + 1}. ${p.ten_san_pham} (ID: ${p._id})`);
+        console.log(`      Category: ${p.danh_muc}, Price: ${p.gia_khuyen_mai || p.gia_goc}₫`);
+      });
+    } else {
+      console.log("   ⚠️ No products found!");
+      console.log("   💡 Run: node import-products-to-mongodb.js to import sample data");
+    }
+    
+    // 6. Test best selling products
+    console.log("\n5. Best selling products:");
+    const bestSelling = await Product.find({ trang_thai: "active" })
+      .sort({ so_luong_da_ban: -1 })
+      .limit(3);
+    if (bestSelling.length > 0) {
+      bestSelling.forEach((p, index) => {
+        console.log(`   ${index + 1}. ${p.ten_san_pham} - Sold: ${p.so_luong_da_ban}`);
+      });
+    } else {
+      console.log("   ⚠️ No best selling products found!");
+    }
+    
+    console.log("\n==========================================\n");
+    console.log("✅ Test completed!");
+    console.log("\n💡 Next steps:");
+    console.log("   1. Make sure server is running: npm start");
+    console.log("   2. Check API endpoint: http://localhost:3000/api/product/best-selling");
+    console.log("   3. If no products, import data: node import-products-to-mongodb.js");
+    console.log("\n");
+    
+    await mongoose.disconnect();
+    process.exit(0);
+  } catch (error) {
+    console.error("\n❌ Error:", error.message);
+    console.error("\n💡 Troubleshooting:");
+    console.error("   1. Make sure MongoDB is running");
+    console.error("   2. Check MONGODB_URI in .env file");
+    console.error("   3. Default URI: mongodb://localhost:27017/BanGiay_App");
+    process.exit(1);
   }
 }
 
-// Chạy test
-testAPI();
-
+testConnection();

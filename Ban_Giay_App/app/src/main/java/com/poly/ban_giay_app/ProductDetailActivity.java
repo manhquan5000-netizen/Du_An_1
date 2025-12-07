@@ -7,6 +7,7 @@ import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.style.StrikethroughSpan;
 import android.text.style.UnderlineSpan;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -53,11 +54,13 @@ public class ProductDetailActivity extends AppCompatActivity {
         }
 
         sessionManager = new SessionManager(this);
+        
+        // Initialize CartManager with context
+        CartManager.getInstance().setContext(this);
 
         initViews();
         bindActions();
         displayProduct();
-        setupBottomNavigation();
     }
 
     private void initViews() {
@@ -92,14 +95,12 @@ public class ProductDetailActivity extends AppCompatActivity {
             if (quantity > 1) {
                 quantity--;
                 txtQuantity.setText(String.valueOf(quantity));
-                updatePrice();
             }
         });
 
         btnIncrease.setOnClickListener(v -> {
             quantity++;
             txtQuantity.setText(String.valueOf(quantity));
-            updatePrice();
         });
 
         // Add to cart
@@ -111,8 +112,52 @@ public class ProductDetailActivity extends AppCompatActivity {
                 Toast.makeText(this, "Vui lòng chọn kích thước", Toast.LENGTH_SHORT).show();
                 return;
             }
-            // TODO: Add to cart logic
-            Toast.makeText(this, "Đã thêm vào giỏ hàng thành công!", Toast.LENGTH_SHORT).show();
+            
+            // Kiểm tra product ID trước khi thêm vào giỏ hàng
+            if (product.id == null || product.id.isEmpty()) {
+                Toast.makeText(this, "Sản phẩm này không có ID. Vui lòng chọn sản phẩm từ danh sách chính thức.", Toast.LENGTH_LONG).show();
+                return;
+            }
+            
+            // Disable button during API call
+            btnAddToCart.setEnabled(false);
+            btnAddToCart.setText("Đang thêm...");
+            
+            // Show immediate success message
+            Toast.makeText(this, "Đang thêm vào giỏ hàng...", Toast.LENGTH_SHORT).show();
+            
+            // Add to cart with callback
+            CartManager.getInstance().addToCart(product, selectedSize, quantity, new CartManager.CartCallback() {
+                @Override
+                public void onSuccess(String message) {
+                    runOnUiThread(() -> {
+                        btnAddToCart.setEnabled(true);
+                        btnAddToCart.setText("Thêm vào giỏ hàng");
+                        // Hiển thị thông báo thành công
+                        Toast.makeText(ProductDetailActivity.this, message, Toast.LENGTH_SHORT).show();
+                        
+                        // Gửi broadcast để CartActivity reload từ API nếu đang mở
+                        android.content.Intent intent = new android.content.Intent("com.poly.ban_giay_app.CART_UPDATED");
+                        intent.setPackage(getPackageName()); // Đảm bảo broadcast chỉ gửi trong app
+                        sendBroadcast(intent);
+                        Log.d("ProductDetailActivity", "✅ Broadcast CART_UPDATED sent");
+                    });
+                }
+
+                @Override
+                public void onError(String error) {
+                    runOnUiThread(() -> {
+                        btnAddToCart.setEnabled(true);
+                        btnAddToCart.setText("Thêm vào giỏ hàng");
+                        // Hiển thị lỗi chi tiết hơn
+                        String errorMessage = error;
+                        if (error.contains("Không tìm thấy tài nguyên") || error.contains("404")) {
+                            errorMessage = "Sản phẩm không tồn tại trong hệ thống. Vui lòng thử lại hoặc chọn sản phẩm khác.";
+                        }
+                        Toast.makeText(ProductDetailActivity.this, "Lỗi: " + errorMessage, Toast.LENGTH_LONG).show();
+                    });
+                }
+            });
         });
 
         // Buy now
@@ -124,12 +169,8 @@ public class ProductDetailActivity extends AppCompatActivity {
                 Toast.makeText(this, "Vui lòng chọn kích thước", Toast.LENGTH_SHORT).show();
                 return;
             }
-            // Navigate to payment method selection
-            Intent intent = new Intent(ProductDetailActivity.this, PaymentMethodActivity.class);
-            intent.putExtra("product", product);
-            intent.putExtra("quantity", quantity);
-            intent.putExtra("selectedSize", selectedSize);
-            startActivity(intent);
+            // TODO: Buy now logic
+            Toast.makeText(this, "Đang chuyển đến trang thanh toán...", Toast.LENGTH_SHORT).show();
         });
     }
 
@@ -206,67 +247,17 @@ public class ProductDetailActivity extends AppCompatActivity {
         // Rating (5 stars)
         txtRating.setText("★★★★★");
         
-        // Quantity
-        txtQuantity.setText(String.valueOf(quantity));
-        
-        // Price (will be updated based on quantity)
-        updatePrice();
-    }
-    
-    /**
-     * Cập nhật giá hiển thị dựa trên số lượng
-     */
-    private void updatePrice() {
-        // Parse giá từ string (loại bỏ ký tự ₫, dấu chấm, dấu phẩy)
-        long priceOldValue = parsePrice(product.priceOld);
-        long priceNewValue = parsePrice(product.priceNew);
-        
-        // Nhân với số lượng
-        long totalPriceOld = priceOldValue * quantity;
-        long totalPriceNew = priceNewValue * quantity;
-        
-        // Format lại giá với ký tự ₫
-        String formattedPriceOld = formatPrice(totalPriceOld);
-        String formattedPriceNew = formatPrice(totalPriceNew);
-        
-        // Hiển thị giá cũ (có gạch ngang)
-        String priceOldText = "Giá gốc: " + formattedPriceOld;
+        // Price
+        String priceOldText = "Giá gốc: " + product.priceOld;
         SpannableString ss = new SpannableString(priceOldText);
-        int startIndex = priceOldText.indexOf(formattedPriceOld);
+        int startIndex = priceOldText.indexOf(product.priceOld);
         ss.setSpan(new StrikethroughSpan(), startIndex, priceOldText.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         txtPriceOld.setText(ss);
         
-        // Hiển thị giá mới
-        txtPriceNew.setText("Giá khuyến mãi: " + formattedPriceNew);
-    }
-    
-    /**
-     * Parse giá từ string (ví dụ: "500.000₫" -> 500000)
-     */
-    private long parsePrice(String priceString) {
-        if (priceString == null || priceString.isEmpty()) {
-            return 0;
-        }
-        // Loại bỏ ký tự ₫, dấu chấm, dấu phẩy, khoảng trắng
-        String cleaned = priceString.replace("₫", "")
-                                    .replace(".", "")
-                                    .replace(",", "")
-                                    .replace(" ", "")
-                                    .trim();
-        try {
-            return Long.parseLong(cleaned);
-        } catch (NumberFormatException e) {
-            return 0;
-        }
-    }
-    
-    /**
-     * Format giá với ký tự ₫ (ví dụ: 500000 -> "500.000₫")
-     */
-    private String formatPrice(long price) {
-        // Format với dấu chấm ngăn cách hàng nghìn
-        String formatted = String.format("%,d", price).replace(",", ".");
-        return formatted + "₫";
+        txtPriceNew.setText("Giá khuyến mãi: " + product.priceNew);
+        
+        // Quantity
+        txtQuantity.setText(String.valueOf(quantity));
     }
     
     /**
@@ -284,60 +275,6 @@ public class ProductDetailActivity extends AppCompatActivity {
         
         // Map tên file với resource ID
         return getResources().getIdentifier(name, "drawable", getPackageName());
-    }
-
-    private void setupBottomNavigation() {
-        // Trang chủ
-        View navHome = findViewById(R.id.navHome);
-        if (navHome != null) {
-            navHome.setOnClickListener(v -> {
-                Intent intent = new Intent(ProductDetailActivity.this, MainActivity.class);
-                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-                startActivity(intent);
-                finish();
-            });
-        }
-
-        // Danh mục
-        View navCategories = findViewById(R.id.navCategories);
-        if (navCategories != null) {
-            navCategories.setOnClickListener(v -> {
-                Intent intent = new Intent(ProductDetailActivity.this, CategoriesActivity.class);
-                startActivity(intent);
-            });
-        }
-
-        // Giỏ hàng
-        View navCart = findViewById(R.id.navCart);
-        if (navCart != null) {
-            navCart.setOnClickListener(v -> {
-                // TODO: Navigate to cart screen when available
-                Toast.makeText(this, "Tính năng giỏ hàng đang phát triển", Toast.LENGTH_SHORT).show();
-            });
-        }
-
-        // Trợ giúp
-        View navHelp = findViewById(R.id.navHelp);
-        if (navHelp != null) {
-            navHelp.setOnClickListener(v -> {
-                Intent intent = new Intent(ProductDetailActivity.this, HelpActivity.class);
-                startActivity(intent);
-            });
-        }
-
-        // Tài khoản
-        View navAccount = findViewById(R.id.navAccount);
-        if (navAccount != null) {
-            navAccount.setOnClickListener(v -> {
-                if (sessionManager.isLoggedIn()) {
-                    Intent intent = new Intent(ProductDetailActivity.this, AccountActivity.class);
-                    startActivity(intent);
-                } else {
-                    Intent intent = new Intent(ProductDetailActivity.this, LoginActivity.class);
-                    startActivity(intent);
-                }
-            });
-        }
     }
 }
 

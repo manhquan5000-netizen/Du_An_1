@@ -22,11 +22,12 @@
             android:id="@+id/imgProduct"
             android:layout_width="match_parent"
             android:layout_height="180dp"
-            android:scaleType="fitCenter"
+            android:scaleType="centerCrop"
             android:adjustViewBounds="true"
             android:background="#F0F0F0"
             android:layout_marginBottom="8dp"
-            android:contentDescription="Ảnh sản phẩm" />
+            android:contentDescription="Ảnh sản phẩm"
+            android:visibility="visible" />
 
         <!-- Tên sản phẩm (dưới ảnh) -->
         <TextView

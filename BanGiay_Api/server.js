@@ -28,7 +28,44 @@ connectDB();
 
 // ------------------- Test API -------------------
 app.get("/", (req, res) => {
-  res.send("API BanGiay đang chạy...");
+  res.json({
+    message: "API BanGiay đang chạy...",
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      products: "/api/product",
+      bestSelling: "/api/product/best-selling",
+      cart: "/api/cart",
+      orders: "/api/order",
+      auth: "/api/auth"
+    }
+  });
+});
+
+// Health check endpoint
+app.get("/health", async (req, res) => {
+  const mongoose = require("mongoose");
+  const Product = require("./models/Product");
+  
+  try {
+    const dbStatus = mongoose.connection.readyState === 1 ? "connected" : "disconnected";
+    const productCount = await Product.countDocuments();
+    const activeProductCount = await Product.countDocuments({ trang_thai: "active" });
+    
+    res.json({
+      status: "ok",
+      database: dbStatus,
+      products: {
+        total: productCount,
+        active: activeProductCount
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      error: error.message
+    });
+  }
 });
 
 // ------------------- Routes -------------------
@@ -41,11 +78,8 @@ app.use("/api/user", require("./routes/user.routes"));
 // Product CRUD
 app.use("/api/product", require("./routes/product.routes"));
 
-// Payment
-app.use("/api/payment", require("./routes/payment.routes"));
-
-// Help/Support
-app.use("/api/help", require("./routes/help.routes"));
+// Cart APIs
+app.use("/api/cart", require("./routes/cart.routes"));
 
 // ------------------- Server -------------------
 const PORT = process.env.PORT || 3000;

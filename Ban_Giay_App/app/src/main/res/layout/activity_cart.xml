@@ -182,7 +182,10 @@
             android:layout_marginStart="16dp"
             android:layout_marginEnd="16dp"
             android:layout_marginTop="16dp"
-            android:layout_marginBottom="22dp" />
+            android:layout_marginBottom="22dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:enabled="true" />
     </LinearLayout>
 
     <!-- Layout giỏ hàng trống -->

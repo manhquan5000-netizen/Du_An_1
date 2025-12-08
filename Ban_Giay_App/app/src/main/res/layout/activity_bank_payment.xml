@@ -207,6 +207,19 @@
                 android:textStyle="bold"
                 android:textColor="#FFFFFF"
                 android:backgroundTint="#4CAF50"
+                android:elevation="2dp"
+                android:layout_marginBottom="16dp" />
+
+            <!-- Confirm Payment Button -->
+            <Button
+                android:id="@+id/btnConfirmPayment"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:text="Xác nhận đã thanh toán"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#006C67"
                 android:elevation="2dp" />
         </LinearLayout>
     </ScrollView>

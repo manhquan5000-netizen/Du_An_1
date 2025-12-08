@@ -15,7 +15,10 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.poly.ban_giay_app.models.CartItem;
 import com.poly.ban_giay_app.models.Product;
+
+import java.util.List;
 
 public class PaymentMethodActivity extends AppCompatActivity {
     private ImageView btnBack;
@@ -25,6 +28,10 @@ public class PaymentMethodActivity extends AppCompatActivity {
     private int quantity;
     private String selectedSize;
     private SessionManager sessionManager;
+    private boolean isFromCart;
+    private CartManager cartManager;
+    private long totalPrice;
+    private int itemCount;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,17 +46,34 @@ public class PaymentMethodActivity extends AppCompatActivity {
             return insets;
         });
 
-        // Get data from intent
-        product = (Product) getIntent().getSerializableExtra("product");
-        quantity = getIntent().getIntExtra("quantity", 1);
-        selectedSize = getIntent().getStringExtra("selectedSize");
-
-        if (product == null) {
-            finish();
-            return;
-        }
-
         sessionManager = new SessionManager(this);
+        cartManager = CartManager.getInstance();
+        cartManager.setContext(this);
+
+        // Get data from intent
+        isFromCart = getIntent().getBooleanExtra("isFromCart", false);
+        
+        if (isFromCart) {
+            // Lấy thông tin từ cart
+            List<CartItem> selectedItems = cartManager.getSelectedItems();
+            if (selectedItems == null || selectedItems.isEmpty()) {
+                Toast.makeText(this, "Không có sản phẩm được chọn", Toast.LENGTH_SHORT).show();
+                finish();
+                return;
+            }
+            totalPrice = cartManager.getTotalPrice();
+            itemCount = selectedItems.size();
+        } else {
+            // Lấy thông tin từ product detail (buy now)
+            product = (Product) getIntent().getSerializableExtra("product");
+            quantity = getIntent().getIntExtra("quantity", 1);
+            selectedSize = getIntent().getStringExtra("selectedSize");
+
+            if (product == null) {
+                finish();
+                return;
+            }
+        }
 
         initViews();
         bindActions();
@@ -66,27 +90,36 @@ public class PaymentMethodActivity extends AppCompatActivity {
     }
 
     private void displayProductInfo() {
-        if (product != null && txtProductInfo != null) {
-            // Format product name and price
-            String productName = product.name;
-            
-            // Tính giá tổng dựa trên số lượng
-            String totalPrice = calculateTotalPrice();
-            
-            // Build info string: "Product Name • Price • Size"
-            StringBuilder info = new StringBuilder();
-            info.append(productName);
-            
-            if (totalPrice != null && !totalPrice.isEmpty()) {
-                info.append(" • ").append(totalPrice);
+        if (txtProductInfo == null) return;
+        
+        StringBuilder info = new StringBuilder();
+        
+        if (isFromCart) {
+            // Hiển thị thông tin từ cart
+            info.append(itemCount).append(" sản phẩm");
+            if (totalPrice > 0) {
+                info.append(" • ").append(formatPrice(totalPrice));
             }
-            
-            if (selectedSize != null && !selectedSize.isEmpty()) {
-                info.append(" • Size ").append(selectedSize);
+        } else {
+            // Hiển thị thông tin từ product detail
+            if (product != null) {
+                String productName = product.name;
+                info.append(productName);
+                
+                // Tính giá tổng dựa trên số lượng
+                String totalPriceStr = calculateTotalPrice();
+                
+                if (totalPriceStr != null && !totalPriceStr.isEmpty()) {
+                    info.append(" • ").append(totalPriceStr);
+                }
+                
+                if (selectedSize != null && !selectedSize.isEmpty()) {
+                    info.append(" • Size ").append(selectedSize);
+                }
             }
-            
-            txtProductInfo.setText(info.toString());
         }
+        
+        txtProductInfo.setText(info.toString());
     }
     
     /**
@@ -141,31 +174,43 @@ public class PaymentMethodActivity extends AppCompatActivity {
 
         // Credit Card payment
         paymentCreditCard.setOnClickListener(v -> {
-            // Navigate to credit card input screen
             Intent intent = new Intent(PaymentMethodActivity.this, CreditCardActivity.class);
-            intent.putExtra("product", product);
-            intent.putExtra("quantity", quantity);
-            intent.putExtra("selectedSize", selectedSize);
+            if (isFromCart) {
+                intent.putExtra("isFromCart", true);
+            } else {
+                intent.putExtra("product", product);
+                intent.putExtra("quantity", quantity);
+                intent.putExtra("selectedSize", selectedSize);
+                intent.putExtra("isFromCart", false);
+            }
             startActivity(intent);
         });
 
         // ATM Card payment
         paymentATM.setOnClickListener(v -> {
-            // Navigate to ATM card input screen
             Intent intent = new Intent(PaymentMethodActivity.this, AtmCardActivity.class);
-            intent.putExtra("product", product);
-            intent.putExtra("quantity", quantity);
-            intent.putExtra("selectedSize", selectedSize);
+            if (isFromCart) {
+                intent.putExtra("isFromCart", true);
+            } else {
+                intent.putExtra("product", product);
+                intent.putExtra("quantity", quantity);
+                intent.putExtra("selectedSize", selectedSize);
+                intent.putExtra("isFromCart", false);
+            }
             startActivity(intent);
         });
 
         // Cash on Delivery payment - Navigate to bank payment
         paymentCOD.setOnClickListener(v -> {
-            // Navigate to bank payment screen
             Intent intent = new Intent(PaymentMethodActivity.this, BankPaymentActivity.class);
-            intent.putExtra("product", product);
-            intent.putExtra("quantity", quantity);
-            intent.putExtra("selectedSize", selectedSize);
+            if (isFromCart) {
+                intent.putExtra("isFromCart", true);
+            } else {
+                intent.putExtra("product", product);
+                intent.putExtra("quantity", quantity);
+                intent.putExtra("selectedSize", selectedSize);
+                intent.putExtra("isFromCart", false);
+            }
             startActivity(intent);
         });
     }
@@ -233,7 +278,8 @@ public class PaymentMethodActivity extends AppCompatActivity {
         View navCart = findViewById(R.id.navCart);
         if (navCart != null) {
             navCart.setOnClickListener(v -> {
-                Toast.makeText(this, "Tính năng giỏ hàng đang phát triển", Toast.LENGTH_SHORT).show();
+                Intent intent = new Intent(PaymentMethodActivity.this, CartActivity.class);
+                startActivity(intent);
             });
         }
 

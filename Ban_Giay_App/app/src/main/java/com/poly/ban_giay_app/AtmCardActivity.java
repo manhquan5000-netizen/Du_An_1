@@ -17,11 +17,18 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.poly.ban_giay_app.models.CartItem;
 import com.poly.ban_giay_app.models.Product;
 import com.poly.ban_giay_app.network.ApiClient;
 import com.poly.ban_giay_app.network.ApiService;
+import com.poly.ban_giay_app.network.NetworkUtils;
 import com.poly.ban_giay_app.network.model.BaseResponse;
+import com.poly.ban_giay_app.network.model.OrderResponse;
+import com.poly.ban_giay_app.network.request.OrderRequest;
 import com.poly.ban_giay_app.network.request.PaymentRequest;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -36,6 +43,8 @@ public class AtmCardActivity extends AppCompatActivity {
     private int quantity;
     private String selectedSize;
     private SessionManager sessionManager;
+    private boolean isFromCart;
+    private CartManager cartManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,17 +59,26 @@ public class AtmCardActivity extends AppCompatActivity {
             return insets;
         });
 
-        // Get data from intent
-        product = (Product) getIntent().getSerializableExtra("product");
-        quantity = getIntent().getIntExtra("quantity", 1);
-        selectedSize = getIntent().getStringExtra("selectedSize");
-
-        if (product == null) {
-            finish();
-            return;
-        }
-
         sessionManager = new SessionManager(this);
+        cartManager = CartManager.getInstance();
+        cartManager.setContext(this);
+
+        // Get data from intent
+        isFromCart = getIntent().getBooleanExtra("isFromCart", false);
+        
+        if (isFromCart) {
+            // Từ cart - không cần product, sẽ lấy từ CartManager
+        } else {
+            // Từ buy now
+            product = (Product) getIntent().getSerializableExtra("product");
+            quantity = getIntent().getIntExtra("quantity", 1);
+            selectedSize = getIntent().getStringExtra("selectedSize");
+
+            if (product == null) {
+                finish();
+                return;
+            }
+        }
 
         initViews();
         bindActions();
@@ -203,17 +221,117 @@ public class AtmCardActivity extends AppCompatActivity {
 
         // Get user info from session
         String userId = sessionManager.getUserId();
+        if (userId == null || userId.isEmpty()) {
+            Toast.makeText(this, "Vui lòng đăng nhập", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Show loading
+        btnContinue.setEnabled(false);
+        btnContinue.setText("Đang xử lý...");
+        Toast.makeText(this, "Đang xử lý thanh toán...", Toast.LENGTH_SHORT).show();
+
+        if (isFromCart) {
+            // Xử lý thanh toán từ cart - tạo Order
+            processOrderFromCart(cardholderName, cardNumber, expiryDate, paymentType);
+        } else {
+            // Xử lý thanh toán buy now - tạo Payment
+            processPaymentBuyNow(cardholderName, cardNumber, expiryDate, paymentType);
+        }
+    }
+
+    private void processOrderFromCart(String cardholderName, String cardNumber, String expiryDate, String paymentType) {
+        List<CartItem> selectedItems = cartManager.getSelectedItems();
+        if (selectedItems == null || selectedItems.isEmpty()) {
+            btnContinue.setEnabled(true);
+            btnContinue.setText("TIẾP TỤC");
+            Toast.makeText(this, "Không có sản phẩm được chọn", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String userId = sessionManager.getUserId();
+        OrderRequest request = new OrderRequest();
+        request.setUserId(userId);
+        
+        List<OrderRequest.OrderItemRequest> orderItems = new ArrayList<>();
+        long totalPrice = 0;
+        
+        for (CartItem cartItem : selectedItems) {
+            if (cartItem == null || cartItem.product == null || cartItem.product.id == null) {
+                continue;
+            }
+            
+            long itemPrice = cartItem.gia > 0 ? cartItem.gia : 0;
+            if (itemPrice == 0 && cartItem.product.priceNew != null) {
+                String priceStr = cartItem.product.priceNew.replaceAll("[^0-9]", "");
+                if (!priceStr.isEmpty()) {
+                    itemPrice = Long.parseLong(priceStr);
+                }
+            }
+            
+            totalPrice += itemPrice * cartItem.quantity;
+            
+            OrderRequest.OrderItemRequest orderItem = new OrderRequest.OrderItemRequest(
+                cartItem.product.id,
+                cartItem.product.name,
+                cartItem.quantity,
+                cartItem.size,
+                itemPrice
+            );
+            orderItems.add(orderItem);
+        }
+        
+        request.setItems(orderItems);
+        request.setTongTien(totalPrice);
+        request.setDiaChiGiaoHang(""); // TODO: Lấy từ form
+        request.setSoDienThoai(""); // TODO: Lấy từ form
+        request.setGhiChu("Thanh toán bằng " + paymentType + ". Chủ thẻ: " + cardholderName);
+
+        ApiService apiService = ApiClient.getApiService();
+        apiService.createOrder(request).enqueue(new Callback<BaseResponse<OrderResponse>>() {
+            @Override
+            public void onResponse(Call<BaseResponse<OrderResponse>> call, Response<BaseResponse<OrderResponse>> response) {
+                btnContinue.setEnabled(true);
+                btnContinue.setText("TIẾP TỤC");
+
+                if (response.isSuccessful() && response.body() != null) {
+                    BaseResponse<OrderResponse> body = response.body();
+                    if (body.getSuccess()) {
+                        Toast.makeText(AtmCardActivity.this, "Đặt hàng thành công!", Toast.LENGTH_SHORT).show();
+                        cartManager.removeSelectedItems();
+                        Intent intent = new Intent(AtmCardActivity.this, OrderActivity.class);
+                        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                        startActivity(intent);
+                        finish();
+                    } else {
+                        String errorMsg = body.getMessage() != null ? body.getMessage() : "Không thể tạo đơn hàng";
+                        Toast.makeText(AtmCardActivity.this, errorMsg, Toast.LENGTH_LONG).show();
+                    }
+                } else {
+                    String errorMsg = NetworkUtils.extractErrorMessage(response);
+                    Toast.makeText(AtmCardActivity.this, "Lỗi khi xử lý thanh toán (Code: " + response.code() + ")", Toast.LENGTH_LONG).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<BaseResponse<OrderResponse>> call, Throwable t) {
+                btnContinue.setEnabled(true);
+                btnContinue.setText("TIẾP TỤC");
+                Toast.makeText(AtmCardActivity.this, "Lỗi kết nối: " + t.getMessage(), Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
+    private void processPaymentBuyNow(String cardholderName, String cardNumber, String expiryDate, String paymentType) {
+        String userId = sessionManager.getUserId();
         String email = sessionManager.getEmail();
 
-        // Get product info
         String productName = product != null ? product.name : "";
-        // Tính giá tổng dựa trên số lượng
         String productPrice = calculateTotalPrice();
         if (productPrice.isEmpty()) {
             productPrice = product != null ? product.priceNew : "";
         }
 
-        // Create payment request
         PaymentRequest paymentRequest = new PaymentRequest(
             userId,
             email,
@@ -227,26 +345,6 @@ public class AtmCardActivity extends AppCompatActivity {
             expiryDate
         );
 
-        // Show loading
-        btnContinue.setEnabled(false);
-        btnContinue.setText("Đang xử lý...");
-        Toast.makeText(this, "Đang xử lý thanh toán...", Toast.LENGTH_SHORT).show();
-
-        // Debug log
-        android.util.Log.d("Payment", "=== Payment Request (ATM) ===");
-        android.util.Log.d("Payment", "User ID: " + userId);
-        android.util.Log.d("Payment", "Email: " + email);
-        android.util.Log.d("Payment", "Cardholder: " + cardholderName);
-        android.util.Log.d("Payment", "Card Number: " + cardNumber);
-        android.util.Log.d("Payment", "Payment Type: " + paymentType);
-        android.util.Log.d("Payment", "Product: " + productName);
-        android.util.Log.d("Payment", "Price: " + productPrice);
-        android.util.Log.d("Payment", "Quantity: " + quantity);
-        android.util.Log.d("Payment", "Size: " + (selectedSize != null ? selectedSize : ""));
-        android.util.Log.d("Payment", "Expiry Date: " + expiryDate);
-        android.util.Log.d("Payment", "API Base URL: " + com.poly.ban_giay_app.BuildConfig.API_BASE_URL);
-
-        // Call API
         ApiService apiService = ApiClient.getApiService();
         Call<BaseResponse<Object>> call = apiService.createPayment(paymentRequest);
         call.enqueue(new Callback<BaseResponse<Object>>() {
@@ -255,35 +353,16 @@ public class AtmCardActivity extends AppCompatActivity {
                 btnContinue.setEnabled(true);
                 btnContinue.setText("TIẾP TỤC");
 
-                android.util.Log.d("Payment", "=== Payment Response (ATM) ===");
-                android.util.Log.d("Payment", "Response Code: " + response.code());
-                android.util.Log.d("Payment", "Is Successful: " + response.isSuccessful());
-
                 if (response.isSuccessful() && response.body() != null) {
                     BaseResponse<Object> baseResponse = response.body();
-                    android.util.Log.d("Payment", "Response success: " + baseResponse.getSuccess());
-                    android.util.Log.d("Payment", "Response message: " + baseResponse.getMessage());
-                    
                     if (baseResponse.getSuccess()) {
-                        android.util.Log.d("Payment", "Payment saved successfully!");
                         Toast.makeText(AtmCardActivity.this, "Thanh toán thành công!", Toast.LENGTH_SHORT).show();
-                        // Navigate to success screen or back
                         finish();
                     } else {
                         String errorMsg = baseResponse.getMessage() != null ? baseResponse.getMessage() : "Thanh toán thất bại";
                         Toast.makeText(AtmCardActivity.this, errorMsg, Toast.LENGTH_LONG).show();
-                        android.util.Log.e("Payment", "Payment failed: " + errorMsg);
                     }
                 } else {
-                    String errorBody = "Unknown error";
-                    try {
-                        if (response.errorBody() != null) {
-                            errorBody = response.errorBody().string();
-                        }
-                    } catch (Exception e) {
-                        android.util.Log.e("Payment", "Error reading error body", e);
-                    }
-                    android.util.Log.e("Payment", "Response not successful. Code: " + response.code() + ", Body: " + errorBody);
                     Toast.makeText(AtmCardActivity.this, "Lỗi khi xử lý thanh toán (Code: " + response.code() + ")", Toast.LENGTH_LONG).show();
                 }
             }
@@ -292,21 +371,32 @@ public class AtmCardActivity extends AppCompatActivity {
             public void onFailure(Call<BaseResponse<Object>> call, Throwable t) {
                 btnContinue.setEnabled(true);
                 btnContinue.setText("TIẾP TỤC");
-                android.util.Log.e("Payment", "API call failed", t);
                 Toast.makeText(AtmCardActivity.this, "Lỗi kết nối: " + t.getMessage(), Toast.LENGTH_LONG).show();
             }
         });
     }
 
     private void displayProductInfo() {
-        if (product != null && txtProductInfo != null) {
-            try {
+        if (txtProductInfo == null) return;
+        
+        StringBuilder info = new StringBuilder();
+        
+        if (isFromCart) {
+            // Hiển thị thông tin từ cart
+            List<CartItem> selectedItems = cartManager.getSelectedItems();
+            int itemCount = selectedItems != null ? selectedItems.size() : 0;
+            long totalPrice = cartManager.getTotalPrice();
+            
+            info.append(itemCount).append(" sản phẩm");
+            if (totalPrice > 0) {
+                info.append(" • ").append(formatPrice(totalPrice));
+            }
+        } else {
+            // Hiển thị thông tin từ product detail
+            if (product != null) {
                 String productName = product.name;
-                
-                // Tính giá tổng dựa trên số lượng
                 String totalPrice = calculateTotalPrice();
                 
-                StringBuilder info = new StringBuilder();
                 if (productName != null) {
                     info.append(productName);
                 }
@@ -324,16 +414,10 @@ public class AtmCardActivity extends AppCompatActivity {
                     }
                     info.append("Size ").append(selectedSize);
                 }
-                
-                txtProductInfo.setText(info.toString());
-            } catch (Exception e) {
-                android.util.Log.e("AtmCardActivity", "Error displaying product info", e);
-                // Fallback: hiển thị tên sản phẩm đơn giản
-                if (product.name != null) {
-                    txtProductInfo.setText(product.name);
-                }
             }
         }
+        
+        txtProductInfo.setText(info.toString());
     }
     
     /**
@@ -421,7 +505,8 @@ public class AtmCardActivity extends AppCompatActivity {
         View navCart = findViewById(R.id.navCart);
         if (navCart != null) {
             navCart.setOnClickListener(v -> {
-                Toast.makeText(this, "Tính năng giỏ hàng đang phát triển", Toast.LENGTH_SHORT).show();
+                Intent intent = new Intent(AtmCardActivity.this, CartActivity.class);
+                startActivity(intent);
             });
         }
 

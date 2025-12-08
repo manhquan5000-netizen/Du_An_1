@@ -7,12 +7,22 @@ public class CartItem implements Serializable {
     public String size;
     public int quantity;
     public boolean isSelected;
+    public long gia; // Giá tại thời điểm thêm vào giỏ (từ server)
 
     public CartItem(Product product, String size, int quantity) {
         this.product = product;
         this.size = size;
         this.quantity = quantity;
         this.isSelected = false;
+        this.gia = 0; // Mặc định 0, sẽ được set từ server
+    }
+
+    public CartItem(Product product, String size, int quantity, long gia) {
+        this.product = product;
+        this.size = size;
+        this.quantity = quantity;
+        this.isSelected = false;
+        this.gia = gia;
     }
 
     /**
@@ -20,9 +30,17 @@ public class CartItem implements Serializable {
      */
     public long getTotalPrice() {
         try {
-            // Lấy giá từ priceNew (bỏ ký tự ₫ và tất cả dấu chấm)
-            String priceStr = product.priceNew.replace("₫", "").replaceAll("\\.", "");
-            long price = Long.parseLong(priceStr);
+            long price = 0;
+            
+            // Ưu tiên dùng giá từ server (gia field)
+            if (gia > 0) {
+                price = gia;
+            } else if (product != null && product.priceNew != null && !product.priceNew.isEmpty()) {
+                // Nếu không có gia, lấy từ product.priceNew (bỏ ký tự ₫ và tất cả dấu chấm)
+                String priceStr = product.priceNew.replace("₫", "").replaceAll("\\.", "");
+                price = Long.parseLong(priceStr);
+            }
+            
             return price * quantity;
         } catch (Exception e) {
             return 0;

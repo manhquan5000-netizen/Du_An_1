@@ -126,10 +126,22 @@ public class CartResponse {
                     ProductResponse product = new ProductResponse();
                     
                     // Set các field từ Map
+                    // Xử lý _id - có thể là ObjectId object hoặc string
                     if (productMap.containsKey("_id")) {
                         Object idObj = productMap.get("_id");
                         if (idObj != null) {
-                            product.setId(idObj.toString());
+                            // Nếu _id là Map (ObjectId từ MongoDB), lấy $oid hoặc toString
+                            if (idObj instanceof Map) {
+                                @SuppressWarnings("unchecked")
+                                Map<String, Object> idMap = (Map<String, Object>) idObj;
+                                if (idMap.containsKey("$oid")) {
+                                    product.setId(idMap.get("$oid").toString());
+                                } else {
+                                    product.setId(idObj.toString());
+                                }
+                            } else {
+                                product.setId(idObj.toString());
+                            }
                         }
                     }
                     if (productMap.containsKey("ten_san_pham")) {

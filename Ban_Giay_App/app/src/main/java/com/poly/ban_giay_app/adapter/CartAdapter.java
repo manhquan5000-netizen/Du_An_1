@@ -134,7 +134,6 @@ public class CartAdapter extends RecyclerView.Adapter<CartAdapter.CartViewHolder
 
             // Load image - đảm bảo luôn có ảnh hiển thị
             imgProduct.setVisibility(View.VISIBLE);
-            imgProduct.setImageResource(0); // Clear previous image
             
             // Debug log
             Log.d("CartAdapter", "=== Loading image for: " + item.product.name + " ===");
@@ -143,8 +142,20 @@ public class CartAdapter extends RecyclerView.Adapter<CartAdapter.CartViewHolder
             
             boolean imageLoaded = false;
             
-            // Ưu tiên 1: Load từ imageUrl (URL từ server)
-            if (item.product.imageUrl != null && !item.product.imageUrl.trim().isEmpty()) {
+            // Ưu tiên 1: Load từ imageRes (đã được map sẵn)
+            if (item.product.imageRes != 0) {
+                Log.d("CartAdapter", "Loading from imageRes: " + item.product.imageRes);
+                try {
+                    imgProduct.setImageResource(item.product.imageRes);
+                    imageLoaded = true;
+                    Log.d("CartAdapter", "✅ Loaded from imageRes");
+                } catch (Exception e) {
+                    Log.e("CartAdapter", "❌ Error loading from imageRes: " + e.getMessage());
+                }
+            }
+            
+            // Ưu tiên 2: Load từ imageUrl (URL từ server)
+            if (!imageLoaded && item.product.imageUrl != null && !item.product.imageUrl.trim().isEmpty()) {
                 String url = item.product.imageUrl.trim();
                 if (url.startsWith("http://") || url.startsWith("https://")) {
                     Log.d("CartAdapter", "✅ Loading from URL: " + url);
@@ -160,7 +171,7 @@ public class CartAdapter extends RecyclerView.Adapter<CartAdapter.CartViewHolder
                         Log.e("CartAdapter", "❌ Error loading from URL: " + e.getMessage());
                     }
                 } else {
-                    // Ưu tiên 2: Load từ drawable bằng tên file
+                    // Ưu tiên 3: Load từ drawable bằng tên file
                     Log.d("CartAdapter", "Loading from drawable name: " + url);
                     int imageResId = getImageResourceId(url);
                     Log.d("CartAdapter", "Image resource ID: " + imageResId);
@@ -176,22 +187,14 @@ public class CartAdapter extends RecyclerView.Adapter<CartAdapter.CartViewHolder
                 }
             }
             
-            // Ưu tiên 3: Load từ imageRes
-            if (!imageLoaded && item.product.imageRes != 0) {
-                Log.d("CartAdapter", "Loading from imageRes: " + item.product.imageRes);
-                try {
-                    imgProduct.setImageResource(item.product.imageRes);
-                    imageLoaded = true;
-                    Log.d("CartAdapter", "✅ Loaded from imageRes");
-                } catch (Exception e) {
-                    Log.e("CartAdapter", "❌ Error loading from imageRes: " + e.getMessage());
-                }
-            }
-            
             // Fallback: Luôn có ảnh mặc định
             if (!imageLoaded) {
                 Log.w("CartAdapter", "⚠️ Using default image (no imageUrl or imageRes)");
-                imgProduct.setImageResource(R.drawable.giaymau);
+                try {
+                    imgProduct.setImageResource(R.drawable.giaymau);
+                } catch (Exception e) {
+                    Log.e("CartAdapter", "❌ Error loading default image", e);
+                }
             }
             
             Log.d("CartAdapter", "=========================================");
